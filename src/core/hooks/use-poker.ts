@@ -51,6 +51,20 @@ export function useSession(sessionId?: string) {
   );
 }
 
+export function useSessionPlayers(sessionId?: string) {
+  const s = usePokerState();
+  return useMemo(() => {
+    if (!sessionId) return [];
+    return s.sessionPlayers
+      .filter((sp) => sp.sessionId === sessionId)
+      .sort((a, b) => (a.seat ?? Infinity) - (b.seat ?? Infinity) || a.joinedAt - b.joinedAt)
+      .map((sp) => ({
+        sessionPlayer: sp,
+        player: s.players.find((p) => p.id === sp.playerId),
+      }));
+  }, [s.sessionPlayers, s.players, sessionId]);
+}
+
 export function useSessionSummary(sessionId?: string) {
   const s = usePokerState();
   return useMemo(() => {

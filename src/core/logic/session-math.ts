@@ -83,3 +83,11 @@ export function checkIntegrity(
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+export function chipsInPlay(summary: PlayerSessionSummary): number {
+  return summary.buyInChips - summary.cashoutChips;
+}
+
+export function moneyForChips(chips: number, chipValue: number): number {
+  return round2(chips * chipValue);
+}

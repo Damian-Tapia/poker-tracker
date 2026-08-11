@@ -15,7 +15,7 @@ import {
   Transaction,
   RoundResult,
 } from '../models/domain';
-import { summarizePlayer, summarizeSession, checkIntegrity } from '../logic/session-math';
+import { summarizePlayer, summarizeSession, checkIntegrity, round2 } from '../logic/session-math';
 
 export interface PokerState {
   players: Player[];
@@ -96,6 +96,17 @@ export function addPlayer(name: string, avatar?: string): Player {
   const player: Player = { id: uid(), name: name.trim(), avatar, createdAt: Date.now() };
   setState({ ...state, players: [...state.players, player] });
   return player;
+}
+
+export function updatePlayer(playerId: string, patch: { name?: string; avatar?: string }): void {
+  setState({
+    ...state,
+    players: state.players.map((p) =>
+      p.id === playerId
+        ? { ...p, ...(patch.name !== undefined ? { name: patch.name.trim() } : {}), ...(patch.avatar !== undefined ? { avatar: patch.avatar } : {}) }
+        : p,
+    ),
+  });
 }
 
 export function deletePlayer(playerId: string): void {
@@ -202,7 +213,13 @@ export function exportData(): string {
 }
 
 export function importData(json: string, opts: { replace?: boolean } = {}): void {
-  const data = JSON.parse(json);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let data: any;
+  try {
+    data = JSON.parse(json);
+  } catch {
+    throw new Error('JSON inválido — el archivo no se puede leer.');
+  }
   if (opts.replace) {
     setState({
       players: data.players ?? [],
@@ -213,7 +230,6 @@ export function importData(json: string, opts: { replace?: boolean } = {}): void
     });
     return;
   }
-  // Merge por id (last-write-wins).
   const mergeById = <T extends { id: string }>(a: T[], b: T[] = []): T[] => {
     const map = new Map(a.map((x) => [x.id, x]));
     for (const x of b) map.set(x.id, x);
@@ -264,8 +280,6 @@ export function selectPlayerLifetimeStats(
     winningSessions: 0, losingSessions: 0,
   };
 
-  const r2 = (n: number) => Math.round(n * 100) / 100;
-
   for (const sessTxs of bySession.values()) {
     const sum = summarizePlayer(playerId, sessTxs);
     stats.sessionsPlayed++;
@@ -281,12 +295,12 @@ export function selectPlayerLifetimeStats(
     }
   }
 
-  stats.totalIn = r2(stats.totalIn);
-  stats.totalCashout = r2(stats.totalCashout);
-  stats.net = r2(stats.net);
-  stats.totalWon = r2(stats.totalWon);
-  stats.totalLost = r2(stats.totalLost);
-  stats.biggestWin = r2(stats.biggestWin);
-  stats.biggestLoss = r2(stats.biggestLoss);
+  stats.totalIn = round2(stats.totalIn);
+  stats.totalCashout = round2(stats.totalCashout);
+  stats.net = round2(stats.net);
+  stats.totalWon = round2(stats.totalWon);
+  stats.totalLost = round2(stats.totalLost);
+  stats.biggestWin = round2(stats.biggestWin);
+  stats.biggestLoss = round2(stats.biggestLoss);
   return stats;
 }
