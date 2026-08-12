@@ -6,6 +6,8 @@ const s = (playerId: string, net: number): PlayerSessionSummary => ({
   playerId,
   buyInMoney: net < 0 ? -net : 0,
   cashoutMoney: net > 0 ? net : 0,
+  betMoney: 0,
+  potWinMoney: 0,
   net,
   buyInChips: 0,
   cashoutChips: 0,

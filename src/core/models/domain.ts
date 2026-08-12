@@ -2,7 +2,7 @@
 // Contratos de dominio. Todo lo demás depende de esto.
 // Modelo pensado para CASH GAME, local-only, administrado por el host.
 
-export type TransactionType = 'BUY_IN' | 'REBUY' | 'CASHOUT';
+export type TransactionType = 'BUY_IN' | 'REBUY' | 'CASHOUT' | 'BET' | 'POT_WIN';
 
 /** Un jugador es solo un perfil que administra el host. No loguea, no tiene cuenta. */
 export interface Player {
@@ -66,12 +66,22 @@ export interface Transaction {
   note?: string;
 }
 
-/** OPCIONAL. Solo estadística "divertida". 100% desacoplado del dinero. */
+/** Cuánto apostó un jugador en una ronda. */
+export interface RoundBet {
+  playerId: string;
+  amount: number;
+}
+
+/**
+ * Registro de ronda. El pozo es SIEMPRE la suma de `bets` (nunca se guarda por
+ * separado, para que no se desincronice). Cada ronda mueve plata real: resta
+ * `amount` del stack de cada jugador que apostó y se lo suma entero al ganador.
+ */
 export interface RoundResult {
   id: string;
   sessionId: string;
   round: number;
+  bets: RoundBet[];
   winnerPlayerId: string;
-  potChips?: number;
   ts: number;
 }

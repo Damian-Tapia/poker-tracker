@@ -5,6 +5,7 @@ import {
   checkIntegrity,
   round2,
   chipsInPlay,
+  currentStack,
   canChangeSessionMode,
 } from '../session-math';
 import type { Transaction, Session } from '../../models/domain';
@@ -42,8 +43,29 @@ describe('round2', () => {
 
 describe('chipsInPlay', () => {
   it('returns buyInChips minus cashoutChips', () => {
-    const summary = { playerId: 'p1', buyInMoney: 100, cashoutMoney: 0, net: -100, buyInChips: 100, cashoutChips: 40 };
+    const summary = {
+      playerId: 'p1', buyInMoney: 100, cashoutMoney: 0, betMoney: 0, potWinMoney: 0,
+      net: -100, buyInChips: 100, cashoutChips: 40,
+    };
     expect(chipsInPlay(summary)).toBe(60);
+  });
+});
+
+describe('currentStack', () => {
+  it('equals buyInMoney when nobody has bet or won a pot yet', () => {
+    const summary = {
+      playerId: 'p1', buyInMoney: 100, cashoutMoney: 0, betMoney: 0, potWinMoney: 0,
+      net: -100, buyInChips: 100, cashoutChips: 0,
+    };
+    expect(currentStack(summary)).toBe(100);
+  });
+
+  it('subtracts bets and adds pot wins', () => {
+    const summary = {
+      playerId: 'p1', buyInMoney: 100, cashoutMoney: 0, betMoney: 30, potWinMoney: 50,
+      net: -100, buyInChips: 100, cashoutChips: 0,
+    };
+    expect(currentStack(summary)).toBe(120);
   });
 });
 
@@ -90,6 +112,39 @@ describe('summarizePlayer', () => {
     expect(s.cashoutMoney).toBe(0);
     expect(s.net).toBe(0);
   });
+
+  it('accumulates BET into betMoney without touching buyInMoney or net', () => {
+    const txs = [
+      tx({ id: 't1', type: 'BUY_IN', money: 100, chips: 100 }),
+      tx({ id: 't2', type: 'BET', money: 20, chips: 0 }),
+      tx({ id: 't3', type: 'BET', money: 15, chips: 0 }),
+    ];
+    const s = summarizePlayer('p1', txs);
+    expect(s.betMoney).toBe(35);
+    expect(s.buyInMoney).toBe(100);
+    expect(s.net).toBe(-100); // no cashout yet — net only reflects realized (cashed-out) result
+  });
+
+  it('accumulates POT_WIN into potWinMoney without touching cashoutMoney or net', () => {
+    const txs = [
+      tx({ id: 't1', type: 'BUY_IN', money: 100, chips: 100 }),
+      tx({ id: 't2', type: 'POT_WIN', money: 40, chips: 0 }),
+    ];
+    const s = summarizePlayer('p1', txs);
+    expect(s.potWinMoney).toBe(40);
+    expect(s.cashoutMoney).toBe(0);
+    expect(s.net).toBe(-100); // no cashout yet
+  });
+
+  it('BET and POT_WIN carry no chips, unlike BUY_IN/REBUY/CASHOUT', () => {
+    const txs = [
+      tx({ id: 't1', type: 'BET', money: 20, chips: 0 }),
+      tx({ id: 't2', type: 'POT_WIN', money: 20, chips: 0 }),
+    ];
+    const s = summarizePlayer('p1', txs);
+    expect(s.buyInChips).toBe(0);
+    expect(s.cashoutChips).toBe(0);
+  });
 });
 
 describe('checkIntegrity', () => {
@@ -103,7 +158,6 @@ describe('checkIntegrity', () => {
     const summaries = summarizeSession(txs);
     const result = checkIntegrity(summaries, session());
     expect(result.moneyBalanced).toBe(true);
-    expect(result.chipsBalanced).toBe(true);
   });
 
   it('balanced session with rake', () => {
@@ -116,7 +170,21 @@ describe('checkIntegrity', () => {
     const summaries = summarizeSession(txs);
     const result = checkIntegrity(summaries, session({ rake: 10 }));
     expect(result.moneyBalanced).toBe(true);
-    expect(result.chipsBalanced).toBe(false);
+  });
+
+  it('a full round (bets fully matched by one pot win) never breaks the money balance', () => {
+    const txs = [
+      tx({ id: 't1', playerId: 'p1', type: 'BUY_IN', money: 100, chips: 100 }),
+      tx({ id: 't2', playerId: 'p2', type: 'BUY_IN', money: 100, chips: 100 }),
+      tx({ id: 't3', playerId: 'p1', type: 'BET', money: 20, chips: 0 }),
+      tx({ id: 't4', playerId: 'p2', type: 'BET', money: 20, chips: 0 }),
+      tx({ id: 't5', playerId: 'p1', type: 'POT_WIN', money: 40, chips: 0 }),
+      tx({ id: 't6', playerId: 'p1', type: 'CASHOUT', money: 120, chips: 100 }),
+      tx({ id: 't7', playerId: 'p2', type: 'CASHOUT', money: 80, chips: 100 }),
+    ];
+    const summaries = summarizeSession(txs);
+    const result = checkIntegrity(summaries, session());
+    expect(result.moneyBalanced).toBe(true);
   });
 
   it('unbalanced session detected', () => {

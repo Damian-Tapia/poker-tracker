@@ -127,22 +127,65 @@ describe('createSession / setSessionMode', () => {
 });
 
 describe('cashout', () => {
-  it('records the money and chip count passed in directly (no session-wide chip value)', async () => {
-    const { createSession, cashout, getSnapshot } = await import('../poker-store');
+  it('computes money from the current stack (buy-in − bets + pot wins), chips always 0', async () => {
+    const { createSession, buyIn, cashout, getSnapshot } = await import('../poker-store');
     const s = createSession({ mode: 'real' });
-    const tx = cashout(s.id, 'p1', 375, 60);
-    expect(tx.money).toBe(375);
-    expect(tx.chips).toBe(60);
+    buyIn(s.id, 'p1', 100, 100);
+    const tx = cashout(s.id, 'p1');
+    expect(tx.money).toBe(100);
+    expect(tx.chips).toBe(0);
     expect(getSnapshot().transactions.find((t) => t.id === tx.id)?.type).toBe('CASHOUT');
+  });
+
+  it('reflects bets and pot wins recorded before leaving', async () => {
+    const { createSession, buyIn, recordRound, cashout } = await import('../poker-store');
+    const s = createSession({ mode: 'real' });
+    buyIn(s.id, 'p1', 100, 100);
+    buyIn(s.id, 'p2', 100, 100);
+    recordRound(s.id, [{ playerId: 'p1', amount: 20 }, { playerId: 'p2', amount: 20 }], 'p1');
+    const tx = cashout(s.id, 'p1');
+    expect(tx.money).toBe(120); // 100 - 20 (own bet) + 40 (won the pot)
   });
 });
 
 describe('recordRound', () => {
+  it('creates a BET transaction per bettor and a POT_WIN transaction for the winner', async () => {
+    const { createSession, recordRound, getSnapshot } = await import('../poker-store');
+    const s = createSession({ mode: 'real' });
+    recordRound(s.id, [{ playerId: 'p1', amount: 20 }, { playerId: 'p2', amount: 30 }], 'p2');
+
+    const txs = getSnapshot().transactions.filter((t) => t.sessionId === s.id);
+    const bets = txs.filter((t) => t.type === 'BET');
+    const potWins = txs.filter((t) => t.type === 'POT_WIN');
+    expect(bets).toHaveLength(2);
+    expect(bets.every((t) => t.chips === 0)).toBe(true);
+    expect(potWins).toHaveLength(1);
+    expect(potWins[0].playerId).toBe('p2');
+    expect(potWins[0].money).toBe(50); // sum of bets, not split evenly
+  });
+
+  it('does not split the pot evenly — uneven bets stay uneven', async () => {
+    const { createSession, recordRound, getSnapshot } = await import('../poker-store');
+    const s = createSession({ mode: 'real' });
+    recordRound(s.id, [{ playerId: 'p1', amount: 10 }, { playerId: 'p2', amount: 90 }], 'p1');
+    const bets = getSnapshot().transactions.filter((t) => t.sessionId === s.id && t.type === 'BET');
+    expect(bets.find((t) => t.playerId === 'p1')?.money).toBe(10);
+    expect(bets.find((t) => t.playerId === 'p2')?.money).toBe(90);
+  });
+
+  it('skips zero-amount bets and creates no transactions for a pot of 0', async () => {
+    const { createSession, recordRound, getSnapshot } = await import('../poker-store');
+    const s = createSession({ mode: 'real' });
+    recordRound(s.id, [{ playerId: 'p1', amount: 0 }], 'p1');
+    const txs = getSnapshot().transactions.filter((t) => t.sessionId === s.id);
+    expect(txs).toHaveLength(0);
+  });
+
   it('auto-increments the round number per session, starting at 1', async () => {
     const { createSession, recordRound } = await import('../poker-store');
     const s = createSession({ mode: 'real' });
-    const r1 = recordRound(s.id, 'p1', 100);
-    const r2 = recordRound(s.id, 'p2', 200);
+    const r1 = recordRound(s.id, [{ playerId: 'p1', amount: 10 }], 'p1');
+    const r2 = recordRound(s.id, [{ playerId: 'p2', amount: 20 }], 'p2');
     expect(r1.round).toBe(1);
     expect(r2.round).toBe(2);
   });
@@ -151,15 +194,36 @@ describe('recordRound', () => {
     const { createSession, recordRound } = await import('../poker-store');
     const a = createSession({ mode: 'real' });
     const b = createSession({ mode: 'real' });
-    recordRound(a.id, 'p1', 100);
-    const bRound = recordRound(b.id, 'p1', 50);
+    recordRound(a.id, [{ playerId: 'p1', amount: 100 }], 'p1');
+    const bRound = recordRound(b.id, [{ playerId: 'p1', amount: 50 }], 'p1');
     expect(bRound.round).toBe(1);
+  });
+
+  it('locks the session mode, same as any other transaction', async () => {
+    const { createSession, recordRound, setSessionMode } = await import('../poker-store');
+    const s = createSession({ mode: 'real' });
+    recordRound(s.id, [{ playerId: 'p1', amount: 10 }], 'p1');
+    expect(() => setSessionMode(s.id, 'play')).toThrow();
+  });
+});
+
+describe('a full round never breaks moneyBalanced at close', () => {
+  it('buy-in, bet, pot win, cash-out all round-trip to a balanced close', async () => {
+    const { createSession, buyIn, recordRound, cashout, closeSession, getSnapshot } = await import('../poker-store');
+    const s = createSession({ mode: 'real' });
+    buyIn(s.id, 'p1', 100, 100);
+    buyIn(s.id, 'p2', 100, 100);
+    recordRound(s.id, [{ playerId: 'p1', amount: 20 }, { playerId: 'p2', amount: 20 }], 'p1');
+    cashout(s.id, 'p1');
+    cashout(s.id, 'p2');
+    expect(() => closeSession(s.id)).not.toThrow();
+    expect(getSnapshot().sessions.find((x) => x.id === s.id)?.status).toBe('closed');
   });
 });
 
 describe('selectPlayerRoundStats (real vs play split)', () => {
   const round = (overrides: Partial<RoundResult> = {}): RoundResult => ({
-    id: 'r1', sessionId: 's1', round: 1, winnerPlayerId: 'p1', potChips: 100, ts: 0, ...overrides,
+    id: 'r1', sessionId: 's1', round: 1, winnerPlayerId: 'p1', bets: [{ playerId: 'p1', amount: 100 }], ts: 0, ...overrides,
   });
 
   it('splits pots won by session mode, never mixed', () => {
@@ -170,8 +234,8 @@ describe('selectPlayerRoundStats (real vs play split)', () => {
         { id: 'play1', date: 0, status: 'closed', mode: 'play', currency: 'MXN', createdAt: 0 },
       ],
       roundResults: [
-        round({ id: 'r1', sessionId: 'real1', winnerPlayerId: 'p1', potChips: 100 }),
-        round({ id: 'r2', sessionId: 'play1', winnerPlayerId: 'p1', potChips: 9000 }),
+        round({ id: 'r1', sessionId: 'real1', winnerPlayerId: 'p1', bets: [{ playerId: 'p1', amount: 100 }] }),
+        round({ id: 'r2', sessionId: 'play1', winnerPlayerId: 'p1', bets: [{ playerId: 'p1', amount: 9000 }] }),
       ],
     };
 

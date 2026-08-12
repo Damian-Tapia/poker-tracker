@@ -15,6 +15,7 @@ import {
   SessionPlayer,
   Transaction,
   RoundResult,
+  RoundBet,
   PlayerChipRack,
 } from '../models/domain';
 import {
@@ -23,6 +24,7 @@ import {
   checkIntegrity,
   round2,
   canChangeSessionMode,
+  currentStack,
 } from '../logic/session-math';
 import { computePlayerPotStats, PlayerPotStats } from '../logic/rounds';
 
@@ -202,9 +204,15 @@ export function rebuy(sessionId: string, playerId: string, money: number, chips:
   return buyIn(sessionId, playerId, money, chips, 'REBUY');
 }
 
-export function cashout(sessionId: string, playerId: string, money: number, chips: number): Transaction {
+/**
+ * Cash-out ya no se cuenta a mano: se calcula solo (buy-in − apostado + ganado
+ * en pozos). El host solo confirma que el jugador se retira.
+ */
+export function cashout(sessionId: string, playerId: string): Transaction {
   requireOpenSession(sessionId);
-  const tx: Transaction = { id: uid(), sessionId, playerId, type: 'CASHOUT', money, chips, ts: Date.now() };
+  const txsSoFar = state.transactions.filter((t) => t.sessionId === sessionId && t.playerId === playerId);
+  const money = currentStack(summarizePlayer(playerId, txsSoFar));
+  const tx: Transaction = { id: uid(), sessionId, playerId, type: 'CASHOUT', money, chips: 0, ts: Date.now() };
   setState({ ...state, transactions: [...state.transactions, tx] });
   return tx;
 }
@@ -215,10 +223,10 @@ export function closeSession(sessionId: string, opts: { force?: boolean } = {}):
   const txs = state.transactions.filter((t) => t.sessionId === sessionId);
   const summaries = summarizeSession(txs);
   const integrity = checkIntegrity(summaries, s);
-  if (!opts.force && (!integrity.moneyBalanced || !integrity.chipsBalanced)) {
+  if (!opts.force && !integrity.moneyBalanced) {
     throw new Error(
-      `Sesión desbalanceada (netSum=${integrity.netSum.toFixed(2)}, ` +
-        `chipDelta=${integrity.chipDelta}). Corregí los cash-outs o pasá { force: true }.`,
+      `Sesión desbalanceada (netSum=${integrity.netSum.toFixed(2)}). ` +
+        `Faltan cash-outs o pasá { force: true }.`,
     );
   }
   const sessions = state.sessions.map((x) =>
@@ -228,15 +236,33 @@ export function closeSession(sessionId: string, opts: { force?: boolean } = {}):
 }
 
 /**
- * Registra el resultado de la ronda actual y deja lista la numeración para la
- * siguiente. Puramente informativo: NO alimenta settlement ni el neto de plata.
+ * Registra la ronda actual y deja lista la numeración para la siguiente.
+ * El pozo es siempre la suma de las apuestas (nunca partes iguales) y mueve
+ * plata real: cada apostador resta `amount` de su stack, el ganador se lleva
+ * el pozo entero.
  */
-export function recordRound(sessionId: string, winnerPlayerId: string, potChips?: number): RoundResult {
+export function recordRound(sessionId: string, bets: RoundBet[], winnerPlayerId: string): RoundResult {
   requireOpenSession(sessionId);
+  const positiveBets = bets.filter((b) => b.amount > 0);
+  const pot = round2(positiveBets.reduce((sum, b) => sum + b.amount, 0));
+
   const existing = state.roundResults.filter((r) => r.sessionId === sessionId);
   const round = existing.length > 0 ? Math.max(...existing.map((r) => r.round)) + 1 : 1;
-  const result: RoundResult = { id: uid(), sessionId, round, winnerPlayerId, potChips, ts: Date.now() };
-  setState({ ...state, roundResults: [...state.roundResults, result] });
+  const result: RoundResult = { id: uid(), sessionId, round, bets: positiveBets, winnerPlayerId, ts: Date.now() };
+
+  const ts = Date.now();
+  const betTxs: Transaction[] = positiveBets.map((b) => ({
+    id: uid(), sessionId, playerId: b.playerId, type: 'BET', money: b.amount, chips: 0, ts,
+  }));
+  const potWinTxs: Transaction[] = pot > 0
+    ? [{ id: uid(), sessionId, playerId: winnerPlayerId, type: 'POT_WIN', money: pot, chips: 0, ts }]
+    : [];
+
+  setState({
+    ...state,
+    roundResults: [...state.roundResults, result],
+    transactions: [...state.transactions, ...betTxs, ...potWinTxs],
+  });
   return result;
 }
 
