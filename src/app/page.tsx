@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { SuitIcon } from '@/components/ui/SuitIcon';
 import { Icon } from '@/components/ui/Icon';
+import { ModeBadge } from '@/components/session/ModeBadge';
 import { useMounted } from '@/hooks/use-mounted';
 import { useOpenSessions, usePlayers } from '@/core/hooks/use-poker';
 
@@ -31,9 +32,12 @@ export default function Home() {
                 className="flex items-center justify-between rounded-xl border border-brass-700 bg-felt-700 px-4 py-3 hover:border-brass-500 transition-colors"
               >
                 <div>
-                  <p className="font-semibold text-ivory">{s.location ?? 'Mesa sin nombre'}</p>
+                  <div className="mb-1 flex items-center gap-2">
+                    <p className="font-semibold text-ivory">{s.location ?? 'Mesa sin nombre'}</p>
+                    <ModeBadge mode={s.mode} />
+                  </div>
                   <p className="text-xs text-ivory-dim">
-                    {new Date(s.date).toLocaleDateString('es-AR')} · {s.currency} · fichas={s.chipValue}
+                    {new Date(s.date).toLocaleDateString('es-AR')}
                   </p>
                 </div>
                 <span className="text-brass-300 text-xl">▶</span>

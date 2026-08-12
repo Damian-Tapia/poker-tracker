@@ -40,9 +40,6 @@ export default function HistoryPage() {
                   })}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-ivory-dim">{s.chipValue}/ficha</p>
-              </div>
             </Link>
           </li>
         ))}

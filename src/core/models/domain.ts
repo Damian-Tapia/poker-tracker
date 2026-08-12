@@ -29,8 +29,6 @@ export interface Session {
   status: 'open' | 'closed';
   /** Dinero real ('real') o de mentira ('play'). Bloqueado tras la primera transacción. */
   mode: SessionMode;
-  /** Valor en dinero de UNA ficha. Ej: 1 => $1/ficha, 0.5 => $0.50/ficha. */
-  chipValue: number;
   currency: string;     // siempre 'MXN'. Se mantiene el campo por compatibilidad de datos existentes.
   /** Dinero que sale de la mesa (corte del host / propina). Default 0 en home game. */
   rake?: number;

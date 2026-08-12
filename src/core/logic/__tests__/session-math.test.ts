@@ -5,7 +5,6 @@ import {
   checkIntegrity,
   round2,
   chipsInPlay,
-  moneyForChips,
   canChangeSessionMode,
 } from '../session-math';
 import type { Transaction, Session } from '../../models/domain';
@@ -15,7 +14,6 @@ const session = (overrides: Partial<Session> = {}): Session => ({
   date: 0,
   status: 'open',
   mode: 'real',
-  chipValue: 1,
   currency: 'MXN',
   rake: 0,
   createdAt: 0,
@@ -46,14 +44,6 @@ describe('chipsInPlay', () => {
   it('returns buyInChips minus cashoutChips', () => {
     const summary = { playerId: 'p1', buyInMoney: 100, cashoutMoney: 0, net: -100, buyInChips: 100, cashoutChips: 40 };
     expect(chipsInPlay(summary)).toBe(60);
-  });
-});
-
-describe('moneyForChips', () => {
-  it('multiplies chips by chipValue and rounds', () => {
-    expect(moneyForChips(100, 1)).toBe(100);
-    expect(moneyForChips(50, 0.5)).toBe(25);
-    expect(moneyForChips(33, 0.1)).toBeCloseTo(3.3, 5);
   });
 });
 

@@ -82,7 +82,7 @@ function SessionContent() {
           <div>
             <p className="text-xs text-ivory-dim">{session.location ?? 'Mesa'}</p>
             <p className="text-xs text-ivory-dim">
-              {new Date(session.date).toLocaleDateString('es-AR')} · MXN · {session.chipValue}/ficha
+              {new Date(session.date).toLocaleDateString('es-AR')} · MXN
             </p>
           </div>
         </div>
@@ -107,7 +107,7 @@ function SessionContent() {
             <ModeBadge mode={session.mode} onClick={() => setModeDialogOpen(true)} />
           </div>
           <p className="text-xs text-ivory-dim mt-0.5">
-            {new Date(session.date).toLocaleDateString('es-AR')} · MXN · {session.chipValue}/ficha
+            {new Date(session.date).toLocaleDateString('es-AR')} · MXN
             {(session.rake ?? 0) > 0 && ` · rake: ${session.rake}`}
           </p>
         </div>

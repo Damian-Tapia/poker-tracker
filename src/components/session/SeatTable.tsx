@@ -73,7 +73,6 @@ export function SeatTable({ seats, summaries, session }: Props) {
           sessionId={session.id}
           player={selectedSeat.player}
           summary={byPlayer.get(selectedSeat.sessionPlayer.playerId)}
-          chipValue={session.chipValue}
         />
       )}
     </>

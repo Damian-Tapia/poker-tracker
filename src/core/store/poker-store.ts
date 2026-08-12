@@ -126,7 +126,6 @@ export function createSession(opts: {
   date?: number;
   location?: string;
   mode?: SessionMode;
-  chipValue: number;
   rake?: number;
   chipRack?: ChipCount[];
 }): Session {
@@ -136,7 +135,6 @@ export function createSession(opts: {
     location: opts.location,
     status: 'open',
     mode: opts.mode ?? 'real',
-    chipValue: opts.chipValue,
     currency: 'MXN',
     rake: opts.rake ?? 0,
     chipRack: opts.chipRack,
@@ -204,14 +202,8 @@ export function rebuy(sessionId: string, playerId: string, money: number, chips:
   return buyIn(sessionId, playerId, money, chips, 'REBUY');
 }
 
-export function cashout(
-  sessionId: string,
-  playerId: string,
-  chips: number,
-  chipValueOverride?: number,
-): Transaction {
-  const s = requireOpenSession(sessionId);
-  const money = Math.round(chips * (chipValueOverride ?? s.chipValue) * 100) / 100;
+export function cashout(sessionId: string, playerId: string, money: number, chips: number): Transaction {
+  requireOpenSession(sessionId);
   const tx: Transaction = { id: uid(), sessionId, playerId, type: 'CASHOUT', money, chips, ts: Date.now() };
   setState({ ...state, transactions: [...state.transactions, tx] });
   return tx;

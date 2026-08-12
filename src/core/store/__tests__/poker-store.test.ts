@@ -7,7 +7,6 @@ const session = (overrides: Partial<Session> = {}): Session => ({
   date: 0,
   status: 'closed',
   mode: 'real',
-  chipValue: 1,
   currency: 'MXN',
   rake: 0,
   createdAt: 0,
@@ -106,14 +105,14 @@ describe('selectPlayerLifetimeStats (real vs play split)', () => {
 describe('createSession / setSessionMode', () => {
   it('createSession stores the chosen mode and hardcodes currency to MXN', async () => {
     const { createSession } = await import('../poker-store');
-    const s = createSession({ mode: 'play', chipValue: 1 });
+    const s = createSession({ mode: 'play' });
     expect(s.mode).toBe('play');
     expect(s.currency).toBe('MXN');
   });
 
   it('allows changing mode before the first transaction', async () => {
     const { createSession, setSessionMode, getSnapshot } = await import('../poker-store');
-    const s = createSession({ mode: 'real', chipValue: 1 });
+    const s = createSession({ mode: 'real' });
     setSessionMode(s.id, 'play');
     const updated = getSnapshot().sessions.find((x) => x.id === s.id);
     expect(updated?.mode).toBe('play');
@@ -121,16 +120,27 @@ describe('createSession / setSessionMode', () => {
 
   it('blocks changing mode once a transaction exists', async () => {
     const { createSession, buyIn, setSessionMode } = await import('../poker-store');
-    const s = createSession({ mode: 'real', chipValue: 1 });
+    const s = createSession({ mode: 'real' });
     buyIn(s.id, 'p1', 100, 100);
     expect(() => setSessionMode(s.id, 'play')).toThrow();
+  });
+});
+
+describe('cashout', () => {
+  it('records the money and chip count passed in directly (no session-wide chip value)', async () => {
+    const { createSession, cashout, getSnapshot } = await import('../poker-store');
+    const s = createSession({ mode: 'real' });
+    const tx = cashout(s.id, 'p1', 375, 60);
+    expect(tx.money).toBe(375);
+    expect(tx.chips).toBe(60);
+    expect(getSnapshot().transactions.find((t) => t.id === tx.id)?.type).toBe('CASHOUT');
   });
 });
 
 describe('recordRound', () => {
   it('auto-increments the round number per session, starting at 1', async () => {
     const { createSession, recordRound } = await import('../poker-store');
-    const s = createSession({ mode: 'real', chipValue: 1 });
+    const s = createSession({ mode: 'real' });
     const r1 = recordRound(s.id, 'p1', 100);
     const r2 = recordRound(s.id, 'p2', 200);
     expect(r1.round).toBe(1);
@@ -139,8 +149,8 @@ describe('recordRound', () => {
 
   it('keeps round numbering independent per session', async () => {
     const { createSession, recordRound } = await import('../poker-store');
-    const a = createSession({ mode: 'real', chipValue: 1 });
-    const b = createSession({ mode: 'real', chipValue: 1 });
+    const a = createSession({ mode: 'real' });
+    const b = createSession({ mode: 'real' });
     recordRound(a.id, 'p1', 100);
     const bRound = recordRound(b.id, 'p1', 50);
     expect(bRound.round).toBe(1);
@@ -156,8 +166,8 @@ describe('selectPlayerRoundStats (real vs play split)', () => {
     const state: PokerState = {
       players: [], sessionPlayers: [], transactions: [],
       sessions: [
-        { id: 'real1', date: 0, status: 'closed', mode: 'real', chipValue: 1, currency: 'MXN', createdAt: 0 },
-        { id: 'play1', date: 0, status: 'closed', mode: 'play', chipValue: 1, currency: 'MXN', createdAt: 0 },
+        { id: 'real1', date: 0, status: 'closed', mode: 'real', currency: 'MXN', createdAt: 0 },
+        { id: 'play1', date: 0, status: 'closed', mode: 'play', currency: 'MXN', createdAt: 0 },
       ],
       roundResults: [
         round({ id: 'r1', sessionId: 'real1', winnerPlayerId: 'p1', potChips: 100 }),
