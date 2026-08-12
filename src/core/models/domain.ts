@@ -21,6 +21,12 @@ export interface ChipCount {
   count: number;
 }
 
+/** Cuántas fichas (por denominación) contó el host para UN jugador. Solo referencia. */
+export interface PlayerChipRack {
+  playerId: string;
+  counts: ChipCount[];
+}
+
 /** Una "noche" de juego. */
 export interface Session {
   id: string;
@@ -32,8 +38,9 @@ export interface Session {
   currency: string;     // siempre 'MXN'. Se mantiene el campo por compatibilidad de datos existentes.
   /** Dinero que sale de la mesa (corte del host / propina). Default 0 en home game. */
   rake?: number;
-  /** Reparto de fichas físicas en la mesa, solo para mostrar. No restringe buy-ins/rebuys. */
-  chipRack?: ChipCount[];
+  /** Reparto de fichas por jugador contado al armar la mesa. Solo referencia — no crea
+   *  transacciones ni bloquea nada; el buy-in real se sigue cargando por separado. */
+  chipRack?: PlayerChipRack[];
   createdAt: number;
   closedAt?: number;
 }

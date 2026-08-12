@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { totalFromChipCounts, totalChipPieces } from '../chips';
-import type { ChipCount } from '../../models/domain';
+import { totalFromChipCounts, totalChipPieces, totalFromPlayerChipRacks } from '../chips';
+import type { ChipCount, PlayerChipRack } from '../../models/domain';
 
 describe('totalFromChipCounts', () => {
   it('sums value * count across denominations', () => {
@@ -38,5 +38,24 @@ describe('totalChipPieces', () => {
 
   it('returns 0 for empty breakdown', () => {
     expect(totalChipPieces([])).toBe(0);
+  });
+});
+
+describe('totalFromPlayerChipRacks', () => {
+  it('sums MXN totals across all players', () => {
+    const racks: PlayerChipRack[] = [
+      { playerId: 'p1', counts: [{ value: 25, count: 20 }] }, // 500
+      { playerId: 'p2', counts: [{ value: 100, count: 4 }] }, // 400
+    ];
+    expect(totalFromPlayerChipRacks(racks)).toBe(900);
+  });
+
+  it('returns 0 for no players', () => {
+    expect(totalFromPlayerChipRacks([])).toBe(0);
+  });
+
+  it('ignores players with an empty breakdown', () => {
+    const racks: PlayerChipRack[] = [{ playerId: 'p1', counts: [] }, { playerId: 'p2', counts: [{ value: 5, count: 10 }] }];
+    expect(totalFromPlayerChipRacks(racks)).toBe(50);
   });
 });

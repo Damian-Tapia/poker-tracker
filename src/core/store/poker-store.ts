@@ -15,7 +15,7 @@ import {
   SessionPlayer,
   Transaction,
   RoundResult,
-  ChipCount,
+  PlayerChipRack,
 } from '../models/domain';
 import {
   summarizePlayer,
@@ -127,7 +127,7 @@ export function createSession(opts: {
   location?: string;
   mode?: SessionMode;
   rake?: number;
-  chipRack?: ChipCount[];
+  chipRack?: PlayerChipRack[];
 }): Session {
   const session: Session = {
     id: uid(),

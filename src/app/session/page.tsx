@@ -20,9 +20,10 @@ import { SettlementView } from '@/components/session/SettlementView';
 import { ModeBadge } from '@/components/session/ModeBadge';
 import { ModeDialog } from '@/components/session/ModeDialog';
 import { RoundPanel } from '@/components/session/RoundPanel';
-import { PokerChip } from '@/components/ui/PokerChip';
 import { Icon } from '@/components/ui/Icon';
-import { CHIP_DENOMINATIONS } from '@/core/models/chips';
+import { Avatar } from '@/components/ui/Avatar';
+import { Money } from '@/components/ui/Money';
+import { totalFromChipCounts, totalFromPlayerChipRacks } from '@/core/logic/chips';
 import type { SessionIntegrity } from '@/core/logic/session-math';
 
 function SessionContent() {
@@ -42,6 +43,7 @@ function SessionContent() {
   const [integrityOpen, setIntegrityOpen] = useState(false);
   const [pendingIntegrity, setPendingIntegrity] = useState<SessionIntegrity | null>(null);
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
+  const [chipRackOpen, setChipRackOpen] = useState(false);
 
   if (!mounted) return <div className="p-6 text-ivory-dim">Cargando…</div>;
   if (!session) return <div className="p-6 text-ivory-dim">Sesión no encontrada.</div>;
@@ -114,21 +116,35 @@ function SessionContent() {
         <Button variant="danger" size="sm" onClick={handleClose}>Cerrar mesa</Button>
       </div>
 
-      {session.chipRack && session.chipRack.some((c) => c.count > 0) && (
-        <div className="flex items-center gap-2 overflow-x-auto rounded-lg bg-felt-900/50 px-3 py-2">
-          <Icon name="chips" size={14} className="shrink-0 text-ivory-dim" />
-          {session.chipRack
-            .filter((c) => c.count > 0)
-            .map((c) => {
-              const denom = CHIP_DENOMINATIONS.find((d) => d.value === c.value);
-              if (!denom) return null;
-              return (
-                <div key={c.value} className="flex shrink-0 items-center gap-1.5">
-                  <PokerChip colorToken={denom.colorToken} label={denom.label} size="sm" />
-                  <span className="text-xs tabular-money text-ivory-dim">×{c.count}</span>
-                </div>
-              );
-            })}
+      {session.chipRack && session.chipRack.length > 0 && (
+        <div className="rounded-lg bg-felt-900/50 px-3 py-2">
+          <button
+            type="button"
+            onClick={() => setChipRackOpen((v) => !v)}
+            className="flex w-full items-center gap-2 text-xs text-ivory-dim hover:text-ivory"
+          >
+            <Icon name="chips" size={14} />
+            Fichas por jugador (referencia)
+            <span className="ml-auto">{chipRackOpen ? 'ocultar' : 'mostrar'}</span>
+          </button>
+          {chipRackOpen && (
+            <div className="mt-2 space-y-1.5">
+              {session.chipRack.map((rack) => {
+                const player = players.find((p) => p.id === rack.playerId);
+                return (
+                  <div key={rack.playerId} className="flex items-center gap-2">
+                    <Avatar name={player?.name ?? 'Jugador borrado'} avatar={player?.avatar} size="sm" />
+                    <span className="flex-1 text-sm text-ivory">{player?.name ?? 'Jugador borrado'}</span>
+                    <Money amount={totalFromChipCounts(rack.counts)} />
+                  </div>
+                );
+              })}
+              <div className="flex items-center justify-between border-t border-brass-700 pt-1.5">
+                <span className="text-xs font-semibold text-ivory">Gran total</span>
+                <Money amount={totalFromPlayerChipRacks(session.chipRack)} className="font-semibold" />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
