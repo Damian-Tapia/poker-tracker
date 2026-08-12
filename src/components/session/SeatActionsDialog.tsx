@@ -8,6 +8,7 @@ import { Money } from '@/components/ui/Money';
 import { ChipCounter } from '@/components/ui/ChipCounter';
 import { buyIn, rebuy, cashout } from '@/core/store/poker-store';
 import { totalFromChipCounts, totalChipPieces } from '@/core/logic/chips';
+import { currentStack } from '@/core/logic/session-math';
 import { STANDARD_BUYIN_PRESET } from '@/core/models/chips';
 import type { Player, ChipCount } from '@/core/models/domain';
 import type { PlayerSessionSummary } from '@/core/logic/session-math';
@@ -31,19 +32,15 @@ export function SeatActionsDialog({
 }: Props) {
   const [action, setAction] = useState<Action>('rebuy');
   const [buyInChips, setBuyInChips] = useState<ChipCount[]>([]);
-  const [cashoutChips, setCashoutChips] = useState<ChipCount[]>([]);
 
   const buyInMoney = totalFromChipCounts(buyInChips);
   const buyInPieces = totalChipPieces(buyInChips);
-  const cashoutMoney = totalFromChipCounts(cashoutChips);
-  const cashoutPieces = totalChipPieces(cashoutChips);
   const hasBoughtIn = (summary?.buyInChips ?? 0) > 0;
+  const stack = summary ? currentStack(summary) : 0;
 
   function handleSubmit() {
     if (action === 'cashout') {
-      if (cashoutPieces <= 0) return;
-      cashout(sessionId, player.id, cashoutMoney, cashoutPieces);
-      setCashoutChips([]);
+      cashout(sessionId, player.id);
     } else {
       if (buyInPieces <= 0) return;
       if (action === 'buy-in') buyIn(sessionId, player.id, buyInMoney, buyInPieces);
@@ -53,7 +50,7 @@ export function SeatActionsDialog({
     onClose();
   }
 
-  const canSubmit = action === 'cashout' ? cashoutPieces > 0 : buyInPieces > 0;
+  const canSubmit = action === 'cashout' ? true : buyInPieces > 0;
 
   return (
     <Dialog open={open} onClose={onClose} title={player.name}>
@@ -61,7 +58,7 @@ export function SeatActionsDialog({
         <Avatar name={player.name} avatar={player.avatar} />
         {summary && (
           <div className="text-sm text-ivory-dim">
-            Stack: <span className="text-ivory font-semibold">{summary.buyInChips - summary.cashoutChips}</span> fichas
+            Stack: <Money amount={stack} className="font-semibold" />
             {' · '}
             <Money amount={summary.net} showSign />
           </div>
@@ -83,9 +80,12 @@ export function SeatActionsDialog({
       </div>
 
       {action === 'cashout' ? (
-        <div className="mt-4">
-          <label className="mb-2 block text-xs text-ivory-dim">Contá las fichas que devuelve</label>
-          <ChipCounter value={cashoutChips} onChange={setCashoutChips} />
+        <div className="mt-4 rounded-lg bg-felt-900 p-4 text-center">
+          <p className="text-xs text-ivory-dim">Se retira con</p>
+          <Money amount={stack} className="text-2xl font-semibold" />
+          <p className="mt-1 text-xs text-ivory-dim">
+            Calculado: buy-in − apostado + ganado en rondas. No se cuentan fichas.
+          </p>
         </div>
       ) : (
         <div className="mt-4">

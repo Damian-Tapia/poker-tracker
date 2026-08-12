@@ -14,12 +14,11 @@ const round = (overrides: Partial<RoundResult> = {}): RoundResult => ({
 
 describe('roundPot', () => {
   it('sums the bets, uneven amounts included', () => {
-    const r = round({ bets: [{ playerId: 'p1', amount: 20 }, { playerId: 'p2', amount: 45 }] });
-    expect(roundPot(r)).toBe(65);
+    expect(roundPot([{ playerId: 'p1', amount: 20 }, { playerId: 'p2', amount: 45 }])).toBe(65);
   });
 
-  it('returns 0 for a round with no bets', () => {
-    expect(roundPot(round({ bets: [] }))).toBe(0);
+  it('returns 0 for no bets', () => {
+    expect(roundPot([])).toBe(0);
   });
 });
 

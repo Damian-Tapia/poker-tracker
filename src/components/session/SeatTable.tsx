@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Money } from '@/components/ui/Money';
 import { SeatActionsDialog } from './SeatActionsDialog';
+import { currentStack } from '@/core/logic/session-math';
 import type { Player, Session } from '@/core/models/domain';
 import type { PlayerSessionSummary } from '@/core/logic/session-math';
 
@@ -30,7 +31,7 @@ export function SeatTable({ seats, summaries, session }: Props) {
           <thead>
             <tr className="border-b border-felt-500 text-xs text-ivory-dim">
               <th className="py-2 text-left">Jugador</th>
-              <th className="py-2 text-right">Fichas</th>
+              <th className="py-2 text-right">Stack</th>
               <th className="py-2 text-right">Invertido</th>
               <th className="py-2 text-right">Net</th>
             </tr>
@@ -39,7 +40,7 @@ export function SeatTable({ seats, summaries, session }: Props) {
             {seats.map((seat) => {
               const player = seat.player;
               const summary = byPlayer.get(seat.sessionPlayer.playerId);
-              const stack = (summary?.buyInChips ?? 0) - (summary?.cashoutChips ?? 0);
+              const stack = summary ? currentStack(summary) : 0;
               return (
                 <tr
                   key={seat.sessionPlayer.id}
@@ -52,7 +53,9 @@ export function SeatTable({ seats, summaries, session }: Props) {
                       <span className="text-ivory">{player?.name ?? 'Jugador borrado'}</span>
                     </div>
                   </td>
-                  <td className="py-3 text-right tabular-money text-ivory">{stack}</td>
+                  <td className="py-3 text-right">
+                    <Money amount={stack} />
+                  </td>
                   <td className="py-3 text-right">
                     <Money amount={summary?.buyInMoney ?? 0} />
                   </td>

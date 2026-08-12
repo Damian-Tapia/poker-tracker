@@ -57,7 +57,7 @@ function SessionContent() {
   function handleClose() {
     if (!sessionId) return;
     const integrity = settlement?.integrity;
-    if (integrity && (!integrity.moneyBalanced || !integrity.chipsBalanced)) {
+    if (integrity && !integrity.moneyBalanced) {
       setPendingIntegrity(integrity);
       setIntegrityOpen(true);
     } else {

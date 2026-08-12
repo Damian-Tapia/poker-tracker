@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { formatMXN } from '@/core/logic/currency';
+import { roundPot } from '@/core/logic/rounds';
 import { recordRound } from '@/core/store/poker-store';
-import type { RoundResult } from '@/core/models/domain';
+import type { RoundResult, RoundBet } from '@/core/models/domain';
 
 interface SeatOption {
   playerId: string;
@@ -18,9 +19,9 @@ interface Props {
   rounds: RoundResult[];
 }
 
-/** Contador de rondas. Informativo — nunca alimenta settlement ni el neto de plata. */
+/** Contador de rondas. Cada apuesta es por jugador — el pozo es la suma, nunca partes iguales. */
 export function RoundPanel({ sessionId, seats, rounds }: Props) {
-  const [pot, setPot] = useState('');
+  const [betsByPlayer, setBetsByPlayer] = useState<Record<string, string>>({});
   const [winnerId, setWinnerId] = useState('');
 
   const nextRoundNumber = rounds.length + 1;
@@ -29,11 +30,19 @@ export function RoundPanel({ sessionId, seats, rounds }: Props) {
     ? seats.find((s) => s.playerId === lastRound.winnerPlayerId)?.name
     : undefined;
 
+  const bets: RoundBet[] = seats
+    .map((s) => ({ playerId: s.playerId, amount: parseFloat(betsByPlayer[s.playerId] ?? '') || 0 }))
+    .filter((b) => b.amount > 0);
+  const pot = roundPot(bets);
+
+  function setBet(playerId: string, value: string) {
+    setBetsByPlayer((prev) => ({ ...prev, [playerId]: value }));
+  }
+
   function handleNext() {
     if (!winnerId) return;
-    const potNum = parseFloat(pot) || 0;
-    recordRound(sessionId, winnerId, potNum > 0 ? potNum : undefined);
-    setPot('');
+    recordRound(sessionId, bets, winnerId);
+    setBetsByPlayer({});
     setWinnerId('');
   }
 
@@ -48,24 +57,37 @@ export function RoundPanel({ sessionId, seats, rounds }: Props) {
         </h3>
         {lastRound && lastWinnerName && (
           <p className="text-right text-xs text-ivory-dim">
-            Última: {lastWinnerName} ganó {formatMXN(lastRound.potChips ?? 0)}
+            Última: {lastWinnerName} ganó {formatMXN(roundPot(lastRound.bets))}
           </p>
         )}
       </div>
 
       <div className="flex flex-col gap-3">
         <div>
-          <label className="mb-1 block text-xs text-ivory-dim">Pozo (opcional)</label>
-          <input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            value={pot}
-            onChange={(e) => setPot(e.target.value)}
-            placeholder="0"
-            className="w-full rounded-lg border border-felt-500 bg-felt-700 px-3 py-2 text-ivory tabular-money placeholder:text-ivory-dim focus:border-brass-500 focus:outline-none"
-          />
+          <label className="mb-2 block text-xs text-ivory-dim">Cuánto apuesta cada quien</label>
+          <div className="space-y-1.5">
+            {seats.map((s) => (
+              <div key={s.playerId} className="flex items-center gap-2">
+                <span className="flex-1 text-sm text-ivory">{s.name}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  value={betsByPlayer[s.playerId] ?? ''}
+                  onChange={(e) => setBet(s.playerId, e.target.value)}
+                  placeholder="0"
+                  className="w-24 rounded-lg border border-felt-500 bg-felt-700 px-2 py-1.5 text-right text-sm text-ivory tabular-money placeholder:text-ivory-dim focus:border-brass-500 focus:outline-none"
+                />
+              </div>
+            ))}
+          </div>
         </div>
+
+        <div className="flex items-center justify-between rounded-lg bg-felt-700 px-3 py-2">
+          <span className="text-xs font-semibold text-ivory-dim">Pozo</span>
+          <span className="text-sm font-semibold tabular-money text-brass-300">{formatMXN(pot)}</span>
+        </div>
+
         <div>
           <label className="mb-1 block text-xs text-ivory-dim">Ganador</label>
           <select

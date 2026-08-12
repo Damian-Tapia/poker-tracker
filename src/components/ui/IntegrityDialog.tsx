@@ -23,11 +23,6 @@ export function IntegrityDialog({ open, onClose, onForce, integrity }: Props) {
             Diferencia de dinero: <strong>{fmt(integrity.netSum)}</strong>
           </p>
         )}
-        {!integrity.chipsBalanced && (
-          <p className="text-oxblood-300">
-            Fichas que faltan canjear: <strong>{integrity.chipDelta}</strong>
-          </p>
-        )}
         <p className="text-ivory-dim text-xs">
           Verificá que todos los jugadores hicieron cash-out. Si el desbalance es intencional (rake), podés forzar el cierre.
         </p>
