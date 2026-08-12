@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMounted } from '@/hooks/use-mounted';
 import { useSessionHistory } from '@/core/hooks/use-poker';
+import { ModeBadge } from '@/components/session/ModeBadge';
 
 export default function HistoryPage() {
   const mounted = useMounted();
@@ -26,7 +27,10 @@ export default function HistoryPage() {
               className="flex items-center justify-between rounded-xl border border-felt-500 bg-felt-900 px-4 py-3 hover:border-brass-700 transition-colors"
             >
               <div>
-                <p className="font-semibold text-ivory">{s.location ?? 'Mesa sin nombre'}</p>
+                <div className="mb-1 flex items-center gap-2">
+                  <p className="font-semibold text-ivory">{s.location ?? 'Mesa sin nombre'}</p>
+                  <ModeBadge mode={s.mode} />
+                </div>
                 <p className="text-xs text-ivory-dim">
                   {new Date(s.date).toLocaleDateString('es-AR', {
                     weekday: 'long',
@@ -37,7 +41,6 @@ export default function HistoryPage() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-ivory-dim">{s.currency}</p>
                 <p className="text-xs text-ivory-dim">{s.chipValue}/ficha</p>
               </div>
             </Link>

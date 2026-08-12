@@ -3,7 +3,13 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useMounted } from '@/hooks/use-mounted';
-import { useSession, useSessionPlayers, useSessionSummary, useSessionSettlement } from '@/core/hooks/use-poker';
+import {
+  useSession,
+  useSessionPlayers,
+  useSessionSummary,
+  useSessionSettlement,
+  useSessionRounds,
+} from '@/core/hooks/use-poker';
 import { usePlayers } from '@/core/hooks/use-poker';
 import { closeSession } from '@/core/store/poker-store';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +17,9 @@ import { SeatTable } from '@/components/session/SeatTable';
 import { AddSeatDialog } from '@/components/session/AddSeatDialog';
 import { IntegrityDialog } from '@/components/ui/IntegrityDialog';
 import { SettlementView } from '@/components/session/SettlementView';
+import { ModeBadge } from '@/components/session/ModeBadge';
+import { ModeDialog } from '@/components/session/ModeDialog';
+import { RoundPanel } from '@/components/session/RoundPanel';
 import type { SessionIntegrity } from '@/core/logic/session-math';
 
 function SessionContent() {
@@ -23,16 +32,22 @@ function SessionContent() {
   const seats = useSessionPlayers(sessionId);
   const summaries = useSessionSummary(sessionId);
   const settlement = useSessionSettlement(sessionId);
+  const rounds = useSessionRounds(sessionId);
   const players = usePlayers();
 
   const [addOpen, setAddOpen] = useState(false);
   const [integrityOpen, setIntegrityOpen] = useState(false);
   const [pendingIntegrity, setPendingIntegrity] = useState<SessionIntegrity | null>(null);
+  const [modeDialogOpen, setModeDialogOpen] = useState(false);
 
   if (!mounted) return <div className="p-6 text-ivory-dim">Cargando…</div>;
   if (!session) return <div className="p-6 text-ivory-dim">Sesión no encontrada.</div>;
 
   const existingIds = new Set(seats.map((s) => s.sessionPlayer.playerId));
+  const modeLocked = summaries.length > 0;
+  const roundSeatOptions = seats
+    .filter((s): s is typeof s & { player: NonNullable<typeof s.player> } => !!s.player)
+    .map((s) => ({ playerId: s.player.id, name: s.player.name }));
 
   function handleClose() {
     if (!sessionId) return;
@@ -59,11 +74,14 @@ function SessionContent() {
             Historial →
           </button>
         </div>
-        <div>
-          <p className="mb-1 text-xs text-ivory-dim">{session.location ?? 'Mesa'}</p>
-          <p className="text-xs text-ivory-dim">
-            {new Date(session.date).toLocaleDateString('es-AR')} · {session.currency} · {session.chipValue}/ficha
-          </p>
+        <div className="flex items-center gap-2">
+          <ModeBadge mode={session.mode} />
+          <div>
+            <p className="text-xs text-ivory-dim">{session.location ?? 'Mesa'}</p>
+            <p className="text-xs text-ivory-dim">
+              {new Date(session.date).toLocaleDateString('es-AR')} · MXN · {session.chipValue}/ficha
+            </p>
+          </div>
         </div>
         <section>
           <h2 className="mb-3 font-serif text-xl text-brass-300">Transferencias</h2>
@@ -79,11 +97,14 @@ function SessionContent() {
 
   return (
     <div className="flex flex-col gap-4 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl text-brass-300">{session.location ?? 'Mesa activa'}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-serif text-2xl text-brass-300">{session.location ?? 'Mesa activa'}</h1>
+            <ModeBadge mode={session.mode} onClick={() => setModeDialogOpen(true)} />
+          </div>
           <p className="text-xs text-ivory-dim mt-0.5">
-            {new Date(session.date).toLocaleDateString('es-AR')} · {session.currency} · {session.chipValue}/ficha
+            {new Date(session.date).toLocaleDateString('es-AR')} · MXN · {session.chipValue}/ficha
             {(session.rake ?? 0) > 0 && ` · rake: ${session.rake}`}
           </p>
         </div>
@@ -101,11 +122,21 @@ function SessionContent() {
         + Agregar jugador
       </Button>
 
+      <RoundPanel sessionId={session.id} seats={roundSeatOptions} rounds={rounds} />
+
       <AddSeatDialog
         open={addOpen}
         onClose={() => setAddOpen(false)}
         sessionId={session.id}
         existingPlayerIds={existingIds}
+      />
+
+      <ModeDialog
+        open={modeDialogOpen}
+        onClose={() => setModeDialogOpen(false)}
+        sessionId={session.id}
+        currentMode={session.mode}
+        locked={modeLocked}
       />
 
       {pendingIntegrity && (

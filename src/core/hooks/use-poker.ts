@@ -13,6 +13,7 @@ import {
   getSnapshot,
   getServerSnapshot,
   selectPlayerLifetimeStats,
+  selectPlayerRoundStats,
   PokerState,
 } from '../store/poker-store';
 import { summarizeSession, checkIntegrity } from '../logic/session-math';
@@ -92,4 +93,22 @@ export function usePlayerLifetimeStats(playerId?: string) {
     () => (playerId ? selectPlayerLifetimeStats(s, playerId) : undefined),
     [s, playerId],
   );
+}
+
+export function usePlayerRoundStats(playerId?: string) {
+  const s = usePokerState();
+  return useMemo(
+    () => (playerId ? selectPlayerRoundStats(s, playerId) : undefined),
+    [s, playerId],
+  );
+}
+
+export function useSessionRounds(sessionId?: string) {
+  const s = usePokerState();
+  return useMemo(() => {
+    if (!sessionId) return [];
+    return s.roundResults
+      .filter((r) => r.sessionId === sessionId)
+      .sort((a, b) => a.round - b.round);
+  }, [s.roundResults, sessionId]);
 }
