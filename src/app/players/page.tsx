@@ -6,6 +6,7 @@ import { usePlayers } from '@/core/hooks/use-poker';
 import { addPlayer, updatePlayer, deletePlayer } from '@/core/store/poker-store';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { PlayerFormDialog } from '@/components/ui/PlayerFormDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { Player } from '@/core/models/domain';
@@ -42,17 +43,17 @@ export default function PlayersPage() {
             <span className="flex-1 font-semibold text-ivory">{p.name}</span>
             <button
               onClick={() => setEditing(p)}
-              className="text-sm text-ivory-dim hover:text-ivory px-2"
+              className="text-ivory-dim hover:text-ivory px-2"
               aria-label={`Editar ${p.name}`}
             >
-              ✏️
+              <Icon name="edit" size={18} />
             </button>
             <button
               onClick={() => setDeleting(p)}
-              className="text-sm text-oxblood-300 hover:text-loss px-2"
+              className="text-oxblood-300 hover:text-loss px-2"
               aria-label={`Borrar ${p.name}`}
             >
-              🗑️
+              <Icon name="delete" size={18} />
             </button>
           </li>
         ))}

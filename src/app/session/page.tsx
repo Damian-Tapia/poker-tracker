@@ -67,7 +67,7 @@ function SessionContent() {
         </div>
         <section>
           <h2 className="mb-3 font-serif text-xl text-brass-300">Transferencias</h2>
-          <SettlementView payments={settlement.payments} players={players} currency={session.currency} />
+          <SettlementView payments={settlement.payments} players={players} />
         </section>
         <section>
           <h2 className="mb-3 font-serif text-xl text-brass-300">Resultados</h2>
@@ -114,7 +114,6 @@ function SessionContent() {
           onClose={() => setIntegrityOpen(false)}
           onForce={handleForceClose}
           integrity={pendingIntegrity}
-          currency={session.currency}
         />
       )}
     </div>

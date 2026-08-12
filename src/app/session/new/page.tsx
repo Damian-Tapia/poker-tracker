@@ -7,6 +7,7 @@ import { usePlayers } from '@/core/hooks/use-poker';
 import { createSession, addPlayerToSession } from '@/core/store/poker-store';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 
 const CURRENCIES = ['ARS', 'USD', 'EUR', 'UYU', 'BRL'] as const;
 const CHIP_VALUES = [0.5, 1, 2, 5, 10, 25];
@@ -138,7 +139,7 @@ export default function NewSessionPage() {
             >
               <Avatar name={p.name} avatar={p.avatar} size="sm" />
               <span className="flex-1 text-left text-ivory">{p.name}</span>
-              {roster.has(p.id) && <span className="text-brass-300">✓</span>}
+              {roster.has(p.id) && <Icon name="check" size={18} className="text-brass-300" />}
             </button>
           ))}
         </div>

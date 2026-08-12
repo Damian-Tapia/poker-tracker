@@ -2,6 +2,7 @@
 
 import { Dialog } from './Dialog';
 import { Button } from './Button';
+import { formatMXN } from '@/core/logic/currency';
 import type { SessionIntegrity } from '@/core/logic/session-math';
 
 interface Props {
@@ -9,14 +10,10 @@ interface Props {
   onClose: () => void;
   onForce: () => void;
   integrity: SessionIntegrity;
-  currency?: string;
 }
 
-export function IntegrityDialog({ open, onClose, onForce, integrity, currency = 'USD' }: Props) {
-  const fmt = (n: number) =>
-    new Intl.NumberFormat('es-AR', { style: 'currency', currency, minimumFractionDigits: 0 }).format(
-      Math.abs(n),
-    );
+export function IntegrityDialog({ open, onClose, onForce, integrity }: Props) {
+  const fmt = (n: number) => formatMXN(Math.abs(n));
 
   return (
     <Dialog open={open} onClose={onClose} title="Sesión desbalanceada">

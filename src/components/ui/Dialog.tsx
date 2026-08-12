@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode, useEffect, useRef } from 'react';
+import { Icon } from './Icon';
 
 interface Props {
   open: boolean;
@@ -47,9 +48,9 @@ export function Dialog({ open, onClose, title, children, className = '' }: Props
           <button
             onClick={onClose}
             aria-label="Cerrar"
-            className="text-ivory-dim hover:text-ivory text-xl leading-none"
+            className="text-ivory-dim hover:text-ivory leading-none"
           >
-            ✕
+            <Icon name="close" size={18} />
           </button>
         </div>
       )}

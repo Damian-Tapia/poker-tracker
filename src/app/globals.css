@@ -14,6 +14,14 @@
   --oxblood-300: #c44;
   --win: var(--brass-500);
   --loss: var(--oxblood-300);
+
+  /* Fichas físicas — distinguibles del resto de la paleta, misma familia tonal. */
+  --chip-white: #d9d3c0;
+  --chip-red: #b3352f;
+  --chip-green: #1f8f5f;
+  --chip-blue: #3b63b0;
+  --chip-black: #262420;
+  --chip-purple: #8a2f6b;
 }
 
 @theme inline {
@@ -30,6 +38,12 @@
   --color-oxblood-300: var(--oxblood-300);
   --color-win: var(--win);
   --color-loss: var(--loss);
+  --color-chip-white: var(--chip-white);
+  --color-chip-red: var(--chip-red);
+  --color-chip-green: var(--chip-green);
+  --color-chip-blue: var(--chip-blue);
+  --color-chip-black: var(--chip-black);
+  --color-chip-purple: var(--chip-purple);
   --font-serif: "DM Serif Display", serif;
   --font-sans: "Inter", sans-serif;
 }

@@ -8,10 +8,9 @@ import type { Player } from '@/core/models/domain';
 interface Props {
   payments: Payment[];
   players: Player[];
-  currency?: string;
 }
 
-export function SettlementView({ payments, players, currency = 'USD' }: Props) {
+export function SettlementView({ payments, players }: Props) {
   const byId = new Map(players.map((p) => [p.id, p]));
 
   if (payments.length === 0) {
@@ -36,7 +35,7 @@ export function SettlementView({ payments, players, currency = 'USD' }: Props) {
             <span className="text-sm text-ivory-dim">le paga a</span>
             <Avatar name={to?.name ?? 'Jugador borrado'} avatar={to?.avatar} size="sm" />
             <div className="ml-auto">
-              <Money amount={pay.amount} currency={currency} className="font-semibold" />
+              <Money amount={pay.amount} className="font-semibold" />
             </div>
           </div>
         );

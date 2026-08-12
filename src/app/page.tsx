@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { SuitIcon } from '@/components/ui/SuitIcon';
+import { Icon } from '@/components/ui/Icon';
 import { useMounted } from '@/hooks/use-mounted';
 import { useOpenSessions, usePlayers } from '@/core/hooks/use-poker';
 
@@ -74,7 +75,7 @@ export default function Home() {
             href="/backup/"
             className="flex flex-col items-center gap-2 rounded-xl border border-felt-500 bg-felt-900 py-5 hover:border-brass-700 transition-colors"
           >
-            <span className="text-3xl">💾</span>
+            <Icon name="export" size={30} />
             <span className="text-sm font-semibold text-ivory">Backup</span>
           </Link>
         </div>

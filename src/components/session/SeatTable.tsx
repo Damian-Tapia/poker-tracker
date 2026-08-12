@@ -54,10 +54,10 @@ export function SeatTable({ seats, summaries, session }: Props) {
                   </td>
                   <td className="py-3 text-right tabular-money text-ivory">{stack}</td>
                   <td className="py-3 text-right">
-                    <Money amount={summary?.buyInMoney ?? 0} currency={session.currency} />
+                    <Money amount={summary?.buyInMoney ?? 0} />
                   </td>
                   <td className="py-3 text-right">
-                    <Money amount={summary?.net ?? 0} currency={session.currency} showSign />
+                    <Money amount={summary?.net ?? 0} showSign />
                   </td>
                 </tr>
               );
@@ -74,7 +74,6 @@ export function SeatTable({ seats, summaries, session }: Props) {
           player={selectedSeat.player}
           summary={byPlayer.get(selectedSeat.sessionPlayer.playerId)}
           chipValue={session.chipValue}
-          currency={session.currency}
         />
       )}
     </>

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useMounted } from '@/hooks/use-mounted';
 import { exportData, importData } from '@/core/store/poker-store';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 type Step = 'idle' | 'choosing' | 'confirm-replace';
@@ -68,7 +69,9 @@ export default function BackupPage() {
       {status && (
         <div className="rounded-lg border border-brass-700 bg-felt-700 px-4 py-3 text-sm text-brass-300">
           {status}
-          <button onClick={() => setStatus(null)} className="ml-3 text-ivory-dim hover:text-ivory">✕</button>
+          <button onClick={() => setStatus(null)} className="ml-3 align-middle text-ivory-dim hover:text-ivory" aria-label="Cerrar">
+            <Icon name="close" size={16} className="inline" />
+          </button>
         </div>
       )}
 

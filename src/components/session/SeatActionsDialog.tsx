@@ -22,7 +22,6 @@ interface Props {
   player: Player;
   summary: PlayerSessionSummary | undefined;
   chipValue: number;
-  currency: string;
 }
 
 export function SeatActionsDialog({
@@ -32,7 +31,6 @@ export function SeatActionsDialog({
   player,
   summary,
   chipValue,
-  currency,
 }: Props) {
   const [action, setAction] = useState<Action>('rebuy');
   const [chips, setChips] = useState('');
@@ -58,7 +56,7 @@ export function SeatActionsDialog({
           <div className="text-sm text-ivory-dim">
             Stack: <span className="text-ivory font-semibold">{summary.buyInChips - summary.cashoutChips}</span> fichas
             {' · '}
-            <Money amount={summary.net} currency={currency} showSign />
+            <Money amount={summary.net} showSign />
           </div>
         )}
       </div>
@@ -104,7 +102,7 @@ export function SeatActionsDialog({
         />
         {chipsNum > 0 && action !== 'cashout' && (
           <p className="mt-1 text-xs text-ivory-dim">
-            = <Money amount={money} currency={currency} />
+            = <Money amount={money} />
           </p>
         )}
       </div>
