@@ -11,11 +11,20 @@
 import {
   Player,
   Session,
+  SessionMode,
   SessionPlayer,
   Transaction,
   RoundResult,
+  ChipCount,
 } from '../models/domain';
-import { summarizePlayer, summarizeSession, checkIntegrity, round2 } from '../logic/session-math';
+import {
+  summarizePlayer,
+  summarizeSession,
+  checkIntegrity,
+  round2,
+  canChangeSessionMode,
+} from '../logic/session-math';
+import { computePlayerPotStats, PlayerPotStats } from '../logic/rounds';
 
 export interface PokerState {
   players: Player[];
@@ -116,22 +125,42 @@ export function deletePlayer(playerId: string): void {
 export function createSession(opts: {
   date?: number;
   location?: string;
+  mode?: SessionMode;
   chipValue: number;
-  currency?: string;
   rake?: number;
+  chipRack?: ChipCount[];
 }): Session {
   const session: Session = {
     id: uid(),
     date: opts.date ?? Date.now(),
     location: opts.location,
     status: 'open',
+    mode: opts.mode ?? 'real',
     chipValue: opts.chipValue,
-    currency: opts.currency ?? 'USD',
+    currency: 'MXN',
     rake: opts.rake ?? 0,
+    chipRack: opts.chipRack,
     createdAt: Date.now(),
   };
   setState({ ...state, sessions: [...state.sessions, session] });
   return session;
+}
+
+/**
+ * Cambia el modo real/play de una sesión. Solo permitido antes de la primera
+ * transacción (evita mezclar métricas de plata real y ficticia a mitad de noche).
+ */
+export function setSessionMode(sessionId: string, mode: SessionMode): void {
+  const s = state.sessions.find((x) => x.id === sessionId);
+  if (!s) throw new Error('Session not found');
+  const txs = state.transactions.filter((t) => t.sessionId === sessionId);
+  if (!canChangeSessionMode(txs)) {
+    throw new Error('No se puede cambiar el modo: la sesión ya tiene transacciones cargadas.');
+  }
+  setState({
+    ...state,
+    sessions: state.sessions.map((x) => (x.id === sessionId ? { ...x, mode } : x)),
+  });
 }
 
 export function addPlayerToSession(sessionId: string, playerId: string, seat?: number): void {
@@ -206,6 +235,19 @@ export function closeSession(sessionId: string, opts: { force?: boolean } = {}):
   setState({ ...state, sessions });
 }
 
+/**
+ * Registra el resultado de la ronda actual y deja lista la numeración para la
+ * siguiente. Puramente informativo: NO alimenta settlement ni el neto de plata.
+ */
+export function recordRound(sessionId: string, winnerPlayerId: string, potChips?: number): RoundResult {
+  requireOpenSession(sessionId);
+  const existing = state.roundResults.filter((r) => r.sessionId === sessionId);
+  const round = existing.length > 0 ? Math.max(...existing.map((r) => r.round)) + 1 : 1;
+  const result: RoundResult = { id: uid(), sessionId, round, winnerPlayerId, potChips, ts: Date.now() };
+  setState({ ...state, roundResults: [...state.roundResults, result] });
+  return result;
+}
+
 // ---------------- Backup ----------------
 
 export function exportData(): string {
@@ -260,20 +302,16 @@ export interface PlayerLifetimeStats {
   losingSessions: number;
 }
 
-export function selectPlayerLifetimeStats(
-  s: PokerState,
+/** Real y play SIEMPRE separados. Nunca se suman en un solo número. */
+export interface PlayerLifetimeStatsByMode {
+  real: PlayerLifetimeStats;
+  play: PlayerLifetimeStats;
+}
+
+function aggregateLifetimeStats(
   playerId: string,
+  bySession: Map<string, Transaction[]>,
 ): PlayerLifetimeStats {
-  const closedIds = new Set(s.sessions.filter((x) => x.status === 'closed').map((x) => x.id));
-  const txs = s.transactions.filter((t) => t.playerId === playerId && closedIds.has(t.sessionId));
-
-  const bySession = new Map<string, Transaction[]>();
-  for (const t of txs) {
-    const arr = bySession.get(t.sessionId) ?? [];
-    arr.push(t);
-    bySession.set(t.sessionId, arr);
-  }
-
   const stats: PlayerLifetimeStats = {
     playerId, sessionsPlayed: 0, totalIn: 0, totalCashout: 0, net: 0,
     totalWon: 0, totalLost: 0, biggestWin: 0, biggestLoss: 0,
@@ -303,4 +341,49 @@ export function selectPlayerLifetimeStats(
   stats.biggestWin = round2(stats.biggestWin);
   stats.biggestLoss = round2(stats.biggestLoss);
   return stats;
+}
+
+export function selectPlayerLifetimeStats(
+  s: PokerState,
+  playerId: string,
+): PlayerLifetimeStatsByMode {
+  const closedIdsByMode: Record<SessionMode, Set<string>> = { real: new Set(), play: new Set() };
+  for (const x of s.sessions) {
+    if (x.status === 'closed') closedIdsByMode[x.mode].add(x.id);
+  }
+
+  const txs = s.transactions.filter((t) => t.playerId === playerId);
+
+  function bucket(mode: SessionMode): PlayerLifetimeStats {
+    const ids = closedIdsByMode[mode];
+    const bySession = new Map<string, Transaction[]>();
+    for (const t of txs) {
+      if (!ids.has(t.sessionId)) continue;
+      const arr = bySession.get(t.sessionId) ?? [];
+      arr.push(t);
+      bySession.set(t.sessionId, arr);
+    }
+    return aggregateLifetimeStats(playerId, bySession);
+  }
+
+  return { real: bucket('real'), play: bucket('play') };
+}
+
+/** pozos ganados por jugador (cantidad, promedio, más grande), partido por modo real/play. */
+export function selectPlayerRoundStats(
+  s: PokerState,
+  playerId: string,
+): { real: PlayerPotStats; play: PlayerPotStats } {
+  const closedIdsByMode: Record<SessionMode, Set<string>> = { real: new Set(), play: new Set() };
+  for (const x of s.sessions) {
+    if (x.status === 'closed') closedIdsByMode[x.mode].add(x.id);
+  }
+
+  function bucket(mode: SessionMode): PlayerPotStats {
+    const ids = closedIdsByMode[mode];
+    const rounds = s.roundResults.filter((r) => ids.has(r.sessionId));
+    return computePlayerPotStats(playerId, rounds);
+  }
+
+  return { real: bucket('real'), play: bucket('play') };
 }

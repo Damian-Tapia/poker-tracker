@@ -6,6 +6,7 @@ import {
   round2,
   chipsInPlay,
   moneyForChips,
+  canChangeSessionMode,
 } from '../session-math';
 import type { Transaction, Session } from '../../models/domain';
 
@@ -13,8 +14,9 @@ const session = (overrides: Partial<Session> = {}): Session => ({
   id: 's1',
   date: 0,
   status: 'open',
+  mode: 'real',
   chipValue: 1,
-  currency: 'USD',
+  currency: 'MXN',
   rake: 0,
   createdAt: 0,
   ...overrides,
@@ -146,5 +148,20 @@ describe('checkIntegrity', () => {
     const summaries = summarizeSession(txs);
     const result = checkIntegrity(summaries, session());
     expect(result.moneyBalanced).toBe(true);
+  });
+});
+
+describe('canChangeSessionMode', () => {
+  it('allows changing mode when the session has no transactions', () => {
+    expect(canChangeSessionMode([])).toBe(true);
+  });
+
+  it('blocks changing mode once any transaction exists', () => {
+    const txs = [tx({ type: 'BUY_IN' })];
+    expect(canChangeSessionMode(txs)).toBe(false);
+  });
+
+  it('blocks even for a single rebuy or cashout', () => {
+    expect(canChangeSessionMode([tx({ type: 'CASHOUT' })])).toBe(false);
   });
 });

@@ -91,3 +91,8 @@ export function chipsInPlay(summary: PlayerSessionSummary): number {
 export function moneyForChips(chips: number, chipValue: number): number {
   return round2(chips * chipValue);
 }
+
+/** El modo real/play se puede cambiar solo antes de la primera transacción de la sesión. */
+export function canChangeSessionMode(txs: Transaction[]): boolean {
+  return txs.length === 0;
+}

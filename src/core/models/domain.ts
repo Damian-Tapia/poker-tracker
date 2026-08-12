@@ -12,17 +12,30 @@ export interface Player {
   createdAt: number;    // epoch ms
 }
 
+/** Dinero de verdad vs. sesión ficticia. Se fija al crear, se bloquea tras la primera transacción. */
+export type SessionMode = 'real' | 'play';
+
+/** Reparto de fichas por denominación. Solo informativo, no custodia inventario. */
+export interface ChipCount {
+  value: number;
+  count: number;
+}
+
 /** Una "noche" de juego. */
 export interface Session {
   id: string;
   date: number;         // epoch ms
   location?: string;
   status: 'open' | 'closed';
+  /** Dinero real ('real') o de mentira ('play'). Bloqueado tras la primera transacción. */
+  mode: SessionMode;
   /** Valor en dinero de UNA ficha. Ej: 1 => $1/ficha, 0.5 => $0.50/ficha. */
   chipValue: number;
-  currency: string;     // 'USD', 'ARS'... solo para display
+  currency: string;     // siempre 'MXN'. Se mantiene el campo por compatibilidad de datos existentes.
   /** Dinero que sale de la mesa (corte del host / propina). Default 0 en home game. */
   rake?: number;
+  /** Reparto de fichas físicas en la mesa, solo para mostrar. No restringe buy-ins/rebuys. */
+  chipRack?: ChipCount[];
   createdAt: number;
   closedAt?: number;
 }
