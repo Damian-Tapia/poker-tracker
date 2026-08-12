@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -17,11 +17,13 @@ interface Props {
 
 /** Bloquea el cambio de modo con un diálogo explicativo, no un alert. */
 export function ModeDialog({ open, onClose, sessionId, currentMode, locked }: Props) {
+  const [prevOpen, setPrevOpen] = useState(open);
   const [pending, setPending] = useState<SessionMode>(currentMode);
 
-  useEffect(() => {
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) setPending(currentMode);
-  }, [open, currentMode]);
+  }
 
   if (locked) {
     return (

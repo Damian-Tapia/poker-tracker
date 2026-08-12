@@ -20,6 +20,9 @@ import { SettlementView } from '@/components/session/SettlementView';
 import { ModeBadge } from '@/components/session/ModeBadge';
 import { ModeDialog } from '@/components/session/ModeDialog';
 import { RoundPanel } from '@/components/session/RoundPanel';
+import { PokerChip } from '@/components/ui/PokerChip';
+import { Icon } from '@/components/ui/Icon';
+import { CHIP_DENOMINATIONS } from '@/core/models/chips';
 import type { SessionIntegrity } from '@/core/logic/session-math';
 
 function SessionContent() {
@@ -110,6 +113,24 @@ function SessionContent() {
         </div>
         <Button variant="danger" size="sm" onClick={handleClose}>Cerrar mesa</Button>
       </div>
+
+      {session.chipRack && session.chipRack.some((c) => c.count > 0) && (
+        <div className="flex items-center gap-2 overflow-x-auto rounded-lg bg-felt-900/50 px-3 py-2">
+          <Icon name="chips" size={14} className="shrink-0 text-ivory-dim" />
+          {session.chipRack
+            .filter((c) => c.count > 0)
+            .map((c) => {
+              const denom = CHIP_DENOMINATIONS.find((d) => d.value === c.value);
+              if (!denom) return null;
+              return (
+                <div key={c.value} className="flex shrink-0 items-center gap-1.5">
+                  <PokerChip colorToken={denom.colorToken} label={denom.label} size="sm" />
+                  <span className="text-xs tabular-money text-ivory-dim">×{c.count}</span>
+                </div>
+              );
+            })}
+        </div>
+      )}
 
       <SeatTable seats={seats} summaries={summaries} session={session} />
 
