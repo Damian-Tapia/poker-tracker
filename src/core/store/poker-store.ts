@@ -24,7 +24,6 @@ import {
   checkIntegrity,
   round2,
   canChangeSessionMode,
-  currentStack,
 } from '../logic/session-math';
 import { computePlayerPotStats, PlayerPotStats } from '../logic/rounds';
 
@@ -204,14 +203,8 @@ export function rebuy(sessionId: string, playerId: string, money: number, chips:
   return buyIn(sessionId, playerId, money, chips, 'REBUY');
 }
 
-/**
- * Cash-out ya no se cuenta a mano: se calcula solo (buy-in − apostado + ganado
- * en pozos). El host solo confirma que el jugador se retira.
- */
-export function cashout(sessionId: string, playerId: string): Transaction {
+export function cashout(sessionId: string, playerId: string, money: number): Transaction {
   requireOpenSession(sessionId);
-  const txsSoFar = state.transactions.filter((t) => t.sessionId === sessionId && t.playerId === playerId);
-  const money = currentStack(summarizePlayer(playerId, txsSoFar));
   const tx: Transaction = { id: uid(), sessionId, playerId, type: 'CASHOUT', money, chips: 0, ts: Date.now() };
   setState({ ...state, transactions: [...state.transactions, tx] });
   return tx;

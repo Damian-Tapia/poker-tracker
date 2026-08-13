@@ -8,11 +8,7 @@ import { createSession, addPlayerToSession } from '@/core/store/poker-store';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { ChipCounter } from '@/components/ui/ChipCounter';
-import { formatMXN } from '@/core/logic/currency';
-import { totalFromPlayerChipRacks } from '@/core/logic/chips';
-import { STANDARD_BUYIN_PRESET } from '@/core/models/chips';
-import type { ChipCount, SessionMode, PlayerChipRack } from '@/core/models/domain';
+import type { SessionMode } from '@/core/models/domain';
 
 export default function NewSessionPage() {
   const mounted = useMounted();
@@ -22,10 +18,6 @@ export default function NewSessionPage() {
   const [mode, setMode] = useState<SessionMode>('real');
   const [location, setLocation] = useState('');
   const [roster, setRoster] = useState<Set<string>>(new Set());
-  const [chipsOpen, setChipsOpen] = useState(false);
-  const [chipsByPlayer, setChipsByPlayer] = useState<Record<string, ChipCount[]>>({});
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [rake, setRake] = useState('0');
 
   function togglePlayer(id: string) {
     setRoster((prev) => {
@@ -35,20 +27,10 @@ export default function NewSessionPage() {
     });
   }
 
-  const rosterPlayers = players.filter((p) => roster.has(p.id));
-  const chipRacks: PlayerChipRack[] = rosterPlayers.map((p) => ({
-    playerId: p.id,
-    counts: chipsByPlayer[p.id] ?? [],
-  }));
-  const grandTotal = totalFromPlayerChipRacks(chipRacks);
-
   function handleCreate() {
-    const nonEmptyRacks = chipRacks.filter((r) => r.counts.some((c) => c.count > 0));
     const session = createSession({
       mode,
-      rake: parseFloat(rake) || 0,
       location: location.trim() || undefined,
-      chipRack: chipsOpen && nonEmptyRacks.length > 0 ? nonEmptyRacks : undefined,
     });
     roster.forEach((id) => addPlayerToSession(session.id, id));
     router.push(`/session/?id=${session.id}`);
@@ -86,9 +68,6 @@ export default function NewSessionPage() {
             Por diversión
           </button>
         </div>
-        <p className="mt-1.5 text-xs text-ivory-dim">
-          Se bloquea apenas se carga el primer buy-in. Las estadísticas de real y play nunca se mezclan.
-        </p>
       </div>
 
       <div>
@@ -104,7 +83,7 @@ export default function NewSessionPage() {
 
       <div>
         <label className="mb-2 block text-xs text-ivory-dim">
-          Jugadores iniciales ({roster.size} seleccionados)
+          Jugadores ({roster.size} seleccionados)
         </label>
         {players.length === 0 && (
           <p className="text-sm text-ivory-dim">No hay jugadores. Agregá desde la pantalla Jugadores.</p>
@@ -124,82 +103,6 @@ export default function NewSessionPage() {
             </button>
           ))}
         </div>
-      </div>
-
-      <div>
-        <button
-          type="button"
-          onClick={() => setChipsOpen((v) => !v)}
-          className="flex w-full items-center gap-2 text-xs font-semibold uppercase tracking-widest text-ivory-dim hover:text-ivory"
-        >
-          <Icon name="chips" size={16} />
-          Fichas por jugador (opcional)
-          <span className="ml-auto normal-case tracking-normal text-ivory-dim">{chipsOpen ? 'ocultar' : 'mostrar'}</span>
-        </button>
-
-        {chipsOpen && (
-          <div className="mt-3 rounded-xl border border-felt-500 bg-felt-900/50 p-3">
-            <p className="mb-3 text-xs text-ivory-dim">
-              Solo referencia para saber con cuánto entra cada uno — no registra el buy-in todavía.
-              Eso se carga después, por jugador, en la mesa activa.
-            </p>
-
-            {rosterPlayers.length === 0 ? (
-              <p className="text-sm text-ivory-dim">Elegí jugadores arriba primero.</p>
-            ) : (
-              <div className="space-y-4">
-                {rosterPlayers.map((p) => {
-                  const counts = chipsByPlayer[p.id] ?? [];
-                  return (
-                    <div key={p.id}>
-                      <div className="mb-2 flex items-center gap-2">
-                        <Avatar name={p.name} avatar={p.avatar} size="sm" />
-                        <span className="font-semibold text-ivory">{p.name}</span>
-                      </div>
-                      <ChipCounter
-                        value={counts}
-                        onChange={(next) => setChipsByPlayer((prev) => ({ ...prev, [p.id]: next }))}
-                        presetLabel="Buy-in estándar"
-                        presetValue={[...STANDARD_BUYIN_PRESET]}
-                      />
-                    </div>
-                  );
-                })}
-
-                <div className="flex items-center justify-between border-t border-brass-700 pt-3">
-                  <span className="text-sm font-semibold text-ivory">Gran total</span>
-                  <span className="text-lg font-semibold tabular-money text-brass-300">{formatMXN(grandTotal)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <button
-          type="button"
-          onClick={() => setAdvancedOpen((v) => !v)}
-          className="flex w-full items-center gap-2 text-xs font-semibold uppercase tracking-widest text-ivory-dim hover:text-ivory"
-        >
-          Opciones avanzadas
-          <span className="ml-auto normal-case tracking-normal text-ivory-dim">{advancedOpen ? 'ocultar' : 'mostrar'}</span>
-        </button>
-
-        {advancedOpen && (
-          <div className="mt-3 rounded-xl border border-felt-500 bg-felt-900/50 p-3">
-            <label className="mb-1 block text-xs text-ivory-dim">Rake (dinero que se saca de la mesa)</label>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              value={rake}
-              onChange={(e) => setRake(e.target.value)}
-              placeholder="0"
-              className="w-32 rounded-lg border border-felt-500 bg-felt-700 px-3 py-2 text-ivory tabular-money placeholder:text-ivory-dim focus:border-brass-500 focus:outline-none"
-            />
-          </div>
-        )}
       </div>
 
       <Button onClick={handleCreate} size="lg" className="w-full">

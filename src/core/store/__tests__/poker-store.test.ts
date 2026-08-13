@@ -127,24 +127,14 @@ describe('createSession / setSessionMode', () => {
 });
 
 describe('cashout', () => {
-  it('computes money from the current stack (buy-in − bets + pot wins), chips always 0', async () => {
+  it('stores the provided money amount, chips always 0', async () => {
     const { createSession, buyIn, cashout, getSnapshot } = await import('../poker-store');
     const s = createSession({ mode: 'real' });
-    buyIn(s.id, 'p1', 100, 100);
-    const tx = cashout(s.id, 'p1');
-    expect(tx.money).toBe(100);
+    buyIn(s.id, 'p1', 100, 0);
+    const tx = cashout(s.id, 'p1', 150);
+    expect(tx.money).toBe(150);
     expect(tx.chips).toBe(0);
     expect(getSnapshot().transactions.find((t) => t.id === tx.id)?.type).toBe('CASHOUT');
-  });
-
-  it('reflects bets and pot wins recorded before leaving', async () => {
-    const { createSession, buyIn, recordRound, cashout } = await import('../poker-store');
-    const s = createSession({ mode: 'real' });
-    buyIn(s.id, 'p1', 100, 100);
-    buyIn(s.id, 'p2', 100, 100);
-    recordRound(s.id, [{ playerId: 'p1', amount: 20 }, { playerId: 'p2', amount: 20 }], 'p1');
-    const tx = cashout(s.id, 'p1');
-    expect(tx.money).toBe(120); // 100 - 20 (own bet) + 40 (won the pot)
   });
 });
 
@@ -214,8 +204,8 @@ describe('a full round never breaks moneyBalanced at close', () => {
     buyIn(s.id, 'p1', 100, 100);
     buyIn(s.id, 'p2', 100, 100);
     recordRound(s.id, [{ playerId: 'p1', amount: 20 }, { playerId: 'p2', amount: 20 }], 'p1');
-    cashout(s.id, 'p1');
-    cashout(s.id, 'p2');
+    cashout(s.id, 'p1', 120); // 100 buyin - 20 bet + 40 pot win
+    cashout(s.id, 'p2', 80);  // 100 buyin - 20 bet
     expect(() => closeSession(s.id)).not.toThrow();
     expect(getSnapshot().sessions.find((x) => x.id === s.id)?.status).toBe('closed');
   });

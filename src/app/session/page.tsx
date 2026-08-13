@@ -8,22 +8,18 @@ import {
   useSessionPlayers,
   useSessionSummary,
   useSessionSettlement,
-  useSessionRounds,
 } from '@/core/hooks/use-poker';
 import { usePlayers } from '@/core/hooks/use-poker';
 import { closeSession } from '@/core/store/poker-store';
 import { Button } from '@/components/ui/Button';
 import { SeatTable } from '@/components/session/SeatTable';
 import { AddSeatDialog } from '@/components/session/AddSeatDialog';
+import { BulkBuyInDialog } from '@/components/session/BulkBuyInDialog';
 import { IntegrityDialog } from '@/components/ui/IntegrityDialog';
 import { SettlementView } from '@/components/session/SettlementView';
 import { ModeBadge } from '@/components/session/ModeBadge';
 import { ModeDialog } from '@/components/session/ModeDialog';
-import { RoundPanel } from '@/components/session/RoundPanel';
-import { Icon } from '@/components/ui/Icon';
-import { Avatar } from '@/components/ui/Avatar';
-import { Money } from '@/components/ui/Money';
-import { totalFromChipCounts, totalFromPlayerChipRacks } from '@/core/logic/chips';
+import { formatMXN } from '@/core/logic/currency';
 import type { SessionIntegrity } from '@/core/logic/session-math';
 
 function SessionContent() {
@@ -36,23 +32,27 @@ function SessionContent() {
   const seats = useSessionPlayers(sessionId);
   const summaries = useSessionSummary(sessionId);
   const settlement = useSessionSettlement(sessionId);
-  const rounds = useSessionRounds(sessionId);
   const players = usePlayers();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [integrityOpen, setIntegrityOpen] = useState(false);
   const [pendingIntegrity, setPendingIntegrity] = useState<SessionIntegrity | null>(null);
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
-  const [chipRackOpen, setChipRackOpen] = useState(false);
 
   if (!mounted) return <div className="p-6 text-ivory-dim">Cargando…</div>;
   if (!session) return <div className="p-6 text-ivory-dim">Sesión no encontrada.</div>;
 
   const existingIds = new Set(seats.map((s) => s.sessionPlayer.playerId));
   const modeLocked = summaries.length > 0;
-  const roundSeatOptions = seats
+
+  const byPlayer = new Map(summaries.map((s) => [s.playerId, s]));
+  const pool = summaries.reduce((sum, s) => sum + s.buyInMoney - s.cashoutMoney, 0);
+  const totalBuyIn = summaries.reduce((sum, s) => sum + s.buyInMoney, 0);
+
+  const bulkSeats = seats
     .filter((s): s is typeof s & { player: NonNullable<typeof s.player> } => !!s.player)
-    .map((s) => ({ playerId: s.player.id, name: s.player.name }));
+    .map((s) => ({ player: s.player, summary: byPlayer.get(s.player.id) }));
 
   function handleClose() {
     if (!sessionId) return;
@@ -84,7 +84,7 @@ function SessionContent() {
           <div>
             <p className="text-xs text-ivory-dim">{session.location ?? 'Mesa'}</p>
             <p className="text-xs text-ivory-dim">
-              {new Date(session.date).toLocaleDateString('es-AR')} · MXN
+              {new Date(session.date).toLocaleDateString('es-MX')} · MXN
             </p>
           </div>
         </div>
@@ -109,57 +109,53 @@ function SessionContent() {
             <ModeBadge mode={session.mode} onClick={() => setModeDialogOpen(true)} />
           </div>
           <p className="text-xs text-ivory-dim mt-0.5">
-            {new Date(session.date).toLocaleDateString('es-AR')} · MXN
-            {(session.rake ?? 0) > 0 && ` · rake: ${session.rake}`}
+            {new Date(session.date).toLocaleDateString('es-MX')} · MXN
           </p>
         </div>
         <Button variant="danger" size="sm" onClick={handleClose}>Cerrar mesa</Button>
       </div>
 
-      {session.chipRack && session.chipRack.length > 0 && (
-        <div className="rounded-lg bg-felt-900/50 px-3 py-2">
-          <button
-            type="button"
-            onClick={() => setChipRackOpen((v) => !v)}
-            className="flex w-full items-center gap-2 text-xs text-ivory-dim hover:text-ivory"
-          >
-            <Icon name="chips" size={14} />
-            Fichas por jugador (referencia)
-            <span className="ml-auto">{chipRackOpen ? 'ocultar' : 'mostrar'}</span>
-          </button>
-          {chipRackOpen && (
-            <div className="mt-2 space-y-1.5">
-              {session.chipRack.map((rack) => {
-                const player = players.find((p) => p.id === rack.playerId);
-                return (
-                  <div key={rack.playerId} className="flex items-center gap-2">
-                    <Avatar name={player?.name ?? 'Jugador borrado'} avatar={player?.avatar} size="sm" />
-                    <span className="flex-1 text-sm text-ivory">{player?.name ?? 'Jugador borrado'}</span>
-                    <Money amount={totalFromChipCounts(rack.counts)} />
-                  </div>
-                );
-              })}
-              <div className="flex items-center justify-between border-t border-brass-700 pt-1.5">
-                <span className="text-xs font-semibold text-ivory">Gran total</span>
-                <Money amount={totalFromPlayerChipRacks(session.chipRack)} className="font-semibold" />
-              </div>
-            </div>
-          )}
+      {totalBuyIn > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-felt-900 border border-felt-500 px-4 py-3">
+            <p className="text-xs text-ivory-dim mb-1">En mesa</p>
+            <p className="text-xl font-semibold tabular-money text-brass-300">{formatMXN(pool)}</p>
+          </div>
+          <div className="rounded-xl bg-felt-900 border border-felt-500 px-4 py-3">
+            <p className="text-xs text-ivory-dim mb-1">Total invertido</p>
+            <p className="text-xl font-semibold tabular-money text-ivory">{formatMXN(totalBuyIn)}</p>
+          </div>
         </div>
       )}
 
       <SeatTable seats={seats} summaries={summaries} session={session} />
 
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={() => setAddOpen(true)}
-        className="w-full"
-      >
-        + Agregar jugador
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setBulkOpen(true)}
+          className="flex-1"
+        >
+          Entrada para todos
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setAddOpen(true)}
+          className="flex-1"
+        >
+          + Jugador
+        </Button>
+      </div>
 
-      <RoundPanel sessionId={session.id} seats={roundSeatOptions} rounds={rounds} />
+      <BulkBuyInDialog
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        sessionId={session.id}
+        seats={bulkSeats}
+        label={totalBuyIn > 0 ? 'rebuy' : 'buy-in'}
+      />
 
       <AddSeatDialog
         open={addOpen}

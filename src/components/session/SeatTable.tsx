@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Money } from '@/components/ui/Money';
 import { SeatActionsDialog } from './SeatActionsDialog';
-import { currentStack } from '@/core/logic/session-math';
 import type { Player, Session } from '@/core/models/domain';
 import type { PlayerSessionSummary } from '@/core/logic/session-math';
 
@@ -31,8 +30,8 @@ export function SeatTable({ seats, summaries, session }: Props) {
           <thead>
             <tr className="border-b border-felt-500 text-xs text-ivory-dim">
               <th className="py-2 text-left">Jugador</th>
-              <th className="py-2 text-right">Stack</th>
               <th className="py-2 text-right">Invertido</th>
+              <th className="py-2 text-right">Salida</th>
               <th className="py-2 text-right">Net</th>
             </tr>
           </thead>
@@ -40,12 +39,12 @@ export function SeatTable({ seats, summaries, session }: Props) {
             {seats.map((seat) => {
               const player = seat.player;
               const summary = byPlayer.get(seat.sessionPlayer.playerId);
-              const stack = summary ? currentStack(summary) : 0;
+              const hasCashout = (summary?.cashoutMoney ?? 0) > 0;
               return (
                 <tr
                   key={seat.sessionPlayer.id}
                   className="border-b border-felt-900 hover:bg-felt-900 cursor-pointer transition-colors"
-                  onClick={() => setSelected(seat.sessionPlayer.playerId)}
+                  onClick={() => session.status === 'open' && setSelected(seat.sessionPlayer.playerId)}
                 >
                   <td className="py-3">
                     <div className="flex items-center gap-2">
@@ -54,13 +53,17 @@ export function SeatTable({ seats, summaries, session }: Props) {
                     </div>
                   </td>
                   <td className="py-3 text-right">
-                    <Money amount={stack} />
-                  </td>
-                  <td className="py-3 text-right">
                     <Money amount={summary?.buyInMoney ?? 0} />
                   </td>
                   <td className="py-3 text-right">
-                    <Money amount={summary?.net ?? 0} showSign />
+                    {hasCashout
+                      ? <Money amount={summary!.cashoutMoney} />
+                      : <span className="text-ivory-dim">—</span>}
+                  </td>
+                  <td className="py-3 text-right">
+                    {hasCashout
+                      ? <Money amount={summary!.net} showSign />
+                      : <span className="text-ivory-dim">—</span>}
                   </td>
                 </tr>
               );

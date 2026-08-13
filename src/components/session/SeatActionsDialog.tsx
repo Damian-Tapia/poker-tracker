@@ -5,12 +5,8 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { Money } from '@/components/ui/Money';
-import { ChipCounter } from '@/components/ui/ChipCounter';
 import { buyIn, rebuy, cashout } from '@/core/store/poker-store';
-import { totalFromChipCounts, totalChipPieces } from '@/core/logic/chips';
-import { currentStack } from '@/core/logic/session-math';
-import { STANDARD_BUYIN_PRESET } from '@/core/models/chips';
-import type { Player, ChipCount } from '@/core/models/domain';
+import type { Player } from '@/core/models/domain';
 import type { PlayerSessionSummary } from '@/core/logic/session-math';
 
 type Action = 'buy-in' | 'rebuy' | 'cashout';
@@ -23,53 +19,44 @@ interface Props {
   summary: PlayerSessionSummary | undefined;
 }
 
-export function SeatActionsDialog({
-  open,
-  onClose,
-  sessionId,
-  player,
-  summary,
-}: Props) {
-  const [action, setAction] = useState<Action>('rebuy');
-  const [buyInChips, setBuyInChips] = useState<ChipCount[]>([]);
+export function SeatActionsDialog({ open, onClose, sessionId, player, summary }: Props) {
+  const hasBoughtIn = (summary?.buyInMoney ?? 0) > 0;
+  const [action, setAction] = useState<Action>(hasBoughtIn ? 'rebuy' : 'buy-in');
+  const [amount, setAmount] = useState('');
 
-  const buyInMoney = totalFromChipCounts(buyInChips);
-  const buyInPieces = totalChipPieces(buyInChips);
-  const hasBoughtIn = (summary?.buyInChips ?? 0) > 0;
-  const stack = summary ? currentStack(summary) : 0;
+  const parsedAmount = parseFloat(amount) || 0;
+  const canSubmit = action === 'cashout' ? parsedAmount > 0 : parsedAmount > 0;
 
   function handleSubmit() {
-    if (action === 'cashout') {
-      cashout(sessionId, player.id);
-    } else {
-      if (buyInPieces <= 0) return;
-      if (action === 'buy-in') buyIn(sessionId, player.id, buyInMoney, buyInPieces);
-      else rebuy(sessionId, player.id, buyInMoney, buyInPieces);
-      setBuyInChips([]);
-    }
+    if (parsedAmount <= 0) return;
+    if (action === 'buy-in') buyIn(sessionId, player.id, parsedAmount, 0);
+    else if (action === 'rebuy') rebuy(sessionId, player.id, parsedAmount, 0);
+    else cashout(sessionId, player.id, parsedAmount);
+    setAmount('');
     onClose();
   }
 
-  const canSubmit = action === 'cashout' ? true : buyInPieces > 0;
+  const actions: Action[] = hasBoughtIn ? ['rebuy', 'cashout'] : ['buy-in'];
 
   return (
     <Dialog open={open} onClose={onClose} title={player.name}>
-      <div className="mb-1 flex items-center gap-3">
+      <div className="mb-4 flex items-center gap-3">
         <Avatar name={player.name} avatar={player.avatar} />
         {summary && (
           <div className="text-sm text-ivory-dim">
-            Stack: <Money amount={stack} className="font-semibold" />
-            {' · '}
-            <Money amount={summary.net} showSign />
+            Invertido: <Money amount={summary.buyInMoney} className="font-semibold" />
+            {summary.cashoutMoney > 0 && (
+              <> · Salida: <Money amount={summary.cashoutMoney} className="font-semibold" /></>
+            )}
           </div>
         )}
       </div>
 
-      <div className="mt-4 flex gap-2 rounded-lg bg-felt-900 p-1">
-        {(!hasBoughtIn ? ['buy-in'] : ['rebuy', 'cashout']).map((a) => (
+      <div className="flex gap-2 rounded-lg bg-felt-900 p-1">
+        {actions.map((a) => (
           <button
             key={a}
-            onClick={() => setAction(a as Action)}
+            onClick={() => { setAction(a); setAmount(''); }}
             className={`flex-1 rounded-md py-1.5 text-sm font-semibold transition-colors ${
               action === a ? 'bg-brass-700 text-ivory' : 'text-ivory-dim hover:text-ivory'
             }`}
@@ -79,25 +66,21 @@ export function SeatActionsDialog({
         ))}
       </div>
 
-      {action === 'cashout' ? (
-        <div className="mt-4 rounded-lg bg-felt-900 p-4 text-center">
-          <p className="text-xs text-ivory-dim">Se retira con</p>
-          <Money amount={stack} className="text-2xl font-semibold" />
-          <p className="mt-1 text-xs text-ivory-dim">
-            Calculado: buy-in − apostado + ganado en rondas. No se cuentan fichas.
-          </p>
-        </div>
-      ) : (
-        <div className="mt-4">
-          <label className="mb-2 block text-xs text-ivory-dim">Contá las fichas por denominación</label>
-          <ChipCounter
-            value={buyInChips}
-            onChange={setBuyInChips}
-            presetLabel="Buy-in estándar"
-            presetValue={[...STANDARD_BUYIN_PRESET]}
-          />
-        </div>
-      )}
+      <div className="mt-4">
+        <label className="mb-2 block text-xs text-ivory-dim">
+          {action === 'cashout' ? '¿Con cuánto sale?' : '¿Cuánto entra?'}
+        </label>
+        <input
+          type="number"
+          inputMode="decimal"
+          min={0}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="0"
+          autoFocus
+          className="w-full rounded-lg border border-felt-500 bg-felt-700 px-3 py-3 text-center text-2xl text-ivory tabular-money placeholder:text-ivory-dim focus:border-brass-500 focus:outline-none"
+        />
+      </div>
 
       <div className="mt-5 flex justify-end gap-3">
         <Button variant="ghost" onClick={onClose}>Cancelar</Button>
