@@ -2,7 +2,7 @@ interface CapacitorConfig {
   appId: string;
   appName: string;
   webDir: string;
-  server?: { androidScheme?: string };
+  server?: { androidScheme?: string; url?: string };
 }
 
 const config: CapacitorConfig = {
@@ -11,6 +11,7 @@ const config: CapacitorConfig = {
   webDir: 'out',
   server: {
     androidScheme: 'https',
+    // url: 'https://tu-servidor.com',  // descomentar cuando tengas la URL del servidor
   },
 };
 

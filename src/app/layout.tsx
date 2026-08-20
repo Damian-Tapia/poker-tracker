@@ -3,6 +3,7 @@ import { DM_Serif_Display, Inter } from 'next/font/google';
 import './globals.css';
 import { AppShell } from '@/components/AppShell';
 import { RegisterServiceWorker } from '@/components/RegisterServiceWorker';
+import { StoreInit } from '@/components/StoreInit';
 
 const dmSerif = DM_Serif_Display({
   weight: '400',
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" className={`${dmSerif.variable} ${inter.variable}`}>
       <body>
+        <StoreInit />
         <AppShell>{children}</AppShell>
         <RegisterServiceWorker />
       </body>

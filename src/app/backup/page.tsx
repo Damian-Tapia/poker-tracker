@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useMounted } from '@/hooks/use-mounted';
-import { exportData, importData } from '@/core/store/poker-store';
+import { initFromAPI } from '@/core/store/poker-store';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -16,16 +16,22 @@ export default function BackupPage() {
   const [pendingJson, setPendingJson] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
-  function handleExport() {
-    const json = exportData();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `poker-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setStatus('Backup descargado.');
+  async function handleExport() {
+    try {
+      const res = await fetch('/api/backup');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.text();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `poker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus('Backup descargado.');
+    } catch (err) {
+      setStatus(`Error al exportar: ${err instanceof Error ? err.message : 'desconocido'}`);
+    }
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -40,10 +46,17 @@ export default function BackupPage() {
     e.target.value = '';
   }
 
-  function doImport(replace: boolean) {
+  async function doImport(replace: boolean) {
     if (!pendingJson) return;
     try {
-      importData(pendingJson, { replace });
+      const data = JSON.parse(pendingJson);
+      const res = await fetch('/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replace, ...data }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await initFromAPI();
       setStatus(replace ? 'Datos reemplazados.' : 'Datos importados (merge).');
     } catch (err) {
       setStatus(`Error: ${err instanceof Error ? err.message : 'desconocido'}`);

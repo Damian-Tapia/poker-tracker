@@ -73,6 +73,15 @@ function persist(): void {
   }
 }
 
+function apiSync(url: string, method: string, body?: unknown): void {
+  if (!isBrowser()) return;
+  fetch(url, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  }).catch((e) => console.error(`[poker-store] sync ${method} ${url}`, e));
+}
+
 /** Reemplaza el estado por una referencia NUEVA, persiste y notifica. */
 function setState(next: PokerState): void {
   state = next;
@@ -100,11 +109,33 @@ export function getServerSnapshot(): PokerState {
   return EMPTY_STATE;
 }
 
+export async function initFromAPI(): Promise<void> {
+  if (!isBrowser()) return;
+  load();
+  try {
+    const res = await fetch('/api/backup');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data: PokerState = await res.json();
+    state = {
+      players: data.players ?? [],
+      sessions: data.sessions ?? [],
+      sessionPlayers: data.sessionPlayers ?? [],
+      transactions: data.transactions ?? [],
+      roundResults: data.roundResults ?? [],
+    };
+    persist();
+    listeners.forEach((l) => l());
+  } catch (e) {
+    console.error('[poker-store] initFromAPI failed, using localStorage data', e);
+  }
+}
+
 // ---------------- Comandos (mutaciones) ----------------
 
 export function addPlayer(name: string, avatar?: string): Player {
   const player: Player = { id: uid(), name: name.trim(), avatar, createdAt: Date.now() };
   setState({ ...state, players: [...state.players, player] });
+  apiSync('/api/players', 'POST', player);
   return player;
 }
 
@@ -117,10 +148,12 @@ export function updatePlayer(playerId: string, patch: { name?: string; avatar?: 
         : p,
     ),
   });
+  apiSync(`/api/players/${playerId}`, 'PUT', patch);
 }
 
 export function deletePlayer(playerId: string): void {
   setState({ ...state, players: state.players.filter((p) => p.id !== playerId) });
+  apiSync(`/api/players/${playerId}`, 'DELETE');
 }
 
 export function createSession(opts: {
@@ -142,6 +175,7 @@ export function createSession(opts: {
     createdAt: Date.now(),
   };
   setState({ ...state, sessions: [...state.sessions, session] });
+  apiSync('/api/sessions', 'POST', session);
   return session;
 }
 
@@ -160,6 +194,7 @@ export function setSessionMode(sessionId: string, mode: SessionMode): void {
     ...state,
     sessions: state.sessions.map((x) => (x.id === sessionId ? { ...x, mode } : x)),
   });
+  apiSync(`/api/sessions/${sessionId}`, 'PATCH', { mode });
 }
 
 export function addPlayerToSession(sessionId: string, playerId: string, seat?: number): void {
@@ -169,6 +204,7 @@ export function addPlayerToSession(sessionId: string, playerId: string, seat?: n
   if (exists) return;
   const sp: SessionPlayer = { id: uid(), sessionId, playerId, seat, joinedAt: Date.now() };
   setState({ ...state, sessionPlayers: [...state.sessionPlayers, sp] });
+  apiSync(`/api/sessions/${sessionId}/players`, 'POST', sp);
 }
 
 function requireOpenSession(sessionId: string): Session {
@@ -191,11 +227,21 @@ export function buyIn(
   const inRoster = state.sessionPlayers.some(
     (sp) => sp.sessionId === sessionId && sp.playerId === playerId,
   );
+  let newSP: SessionPlayer | undefined;
   const sessionPlayers = inRoster
     ? state.sessionPlayers
-    : [...state.sessionPlayers, { id: uid(), sessionId, playerId, joinedAt: Date.now() }];
+    : (() => {
+        newSP = { id: uid(), sessionId, playerId, joinedAt: Date.now() };
+        return [...state.sessionPlayers, newSP];
+      })();
 
   setState({ ...state, transactions: [...state.transactions, tx], sessionPlayers });
+  apiSync(`/api/sessions/${sessionId}/transactions`, 'POST', {
+    ...tx,
+    newSessionPlayer: newSP
+      ? { id: newSP.id, playerId: newSP.playerId, joinedAt: newSP.joinedAt }
+      : undefined,
+  });
   return tx;
 }
 
@@ -207,6 +253,7 @@ export function cashout(sessionId: string, playerId: string, money: number): Tra
   requireOpenSession(sessionId);
   const tx: Transaction = { id: uid(), sessionId, playerId, type: 'CASHOUT', money, chips: 0, ts: Date.now() };
   setState({ ...state, transactions: [...state.transactions, tx] });
+  apiSync(`/api/sessions/${sessionId}/transactions`, 'POST', tx);
   return tx;
 }
 
@@ -222,10 +269,12 @@ export function closeSession(sessionId: string, opts: { force?: boolean } = {}):
         `Faltan cash-outs o pasá { force: true }.`,
     );
   }
+  const closedAt = Date.now();
   const sessions = state.sessions.map((x) =>
-    x.id === sessionId ? { ...x, status: 'closed' as const, closedAt: Date.now() } : x,
+    x.id === sessionId ? { ...x, status: 'closed' as const, closedAt } : x,
   );
   setState({ ...state, sessions });
+  apiSync(`/api/sessions/${sessionId}`, 'PATCH', { status: 'closed', closedAt });
 }
 
 /**
@@ -255,6 +304,10 @@ export function recordRound(sessionId: string, bets: RoundBet[], winnerPlayerId:
     ...state,
     roundResults: [...state.roundResults, result],
     transactions: [...state.transactions, ...betTxs, ...potWinTxs],
+  });
+  apiSync(`/api/sessions/${sessionId}/rounds`, 'POST', {
+    ...result,
+    transactions: [...betTxs, ...potWinTxs],
   });
   return result;
 }
